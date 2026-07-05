@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="de" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EDEKA Lagerverwaltung — Anmelden</title>
+<style>
+/* ── TOKENS ─────────────────────────────────────── */
+:root {
+  --edeka-yellow: #f2c300;
+  --edeka-yellow-dark: #d4aa00;
+  --edeka-red: #e2001a;
+  --edeka-dark: #1a1a1a;
+  --color-bg: #f5f4f0;
+  --color-surface: #ffffff;
+  --color-surface-2: #fafaf8;
+  --color-border: rgba(0,0,0,0.10);
+  --color-text: #1c1b18;
+  --color-text-muted: #6b6a66;
+  --color-text-faint: #b0afa9;
+  --color-primary: #e2001a;
+  --color-primary-hover: #c2001a;
+  --color-success: #2e7d32;
+  --color-error: #c62828;
+  --color-error-bg: #ffebee;
+  --color-error-border: rgba(198,40,40,0.2);
+  --radius-sm: 6px; --radius-md: 10px;
+  --radius-lg: 16px; --radius-xl: 24px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.10);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.14);
+  --transition: 180ms cubic-bezier(0.16,1,0.3,1);
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+[data-theme="dark"] {
+  --color-bg: #161614;
+  --color-surface: #1e1e1c;
+  --color-surface-2: #252523;
+  --color-border: rgba(255,255,255,0.08);
+  --color-text: #e8e7e3;
+  --color-text-muted: #888884;
+  --color-text-faint: #4a4a46;
+  --color-primary: #ff3d3d;
+  --color-primary-hover: #e62020;
+  --color-error: #ef5350;
+  --color-error-bg: #2a1515;
+  --color-error-border: rgba(239,83,80,0.25);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.5);
+}
+
+/* ── BASE ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; -webkit-font-smoothing: antialiased; }
+body {
+  min-height: 100dvh; font-family: var(--font);
+  background: var(--color-bg); color: var(--color-text);
+  display: flex; flex-direction: column;
+  transition: background var(--transition), color var(--transition);
+}
+button { cursor: pointer; font: inherit; border: none; background: none; color: inherit; }
+input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--edeka-yellow); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* ── LAYOUT ───────────────────────────────────── */
+.page {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100dvh;
+}
+
+/* ── LEFT — BRAND PANEL ───────────────────────── */
+.brand-panel {
+  background: var(--edeka-dark);
+  display: flex; flex-direction: column;
+  justify-content: space-between;
+  padding: 48px;
+  position: relative; overflow: hidden;
+}
+/* Decorative glows */
+.brand-panel::before {
+  content: '';
+  position: absolute; top: -140px; right: -140px;
+  width: 520px; height: 520px;
+  background: radial-gradient(circle, rgba(242,195,0,0.18) 0%, transparent 70%);
+  pointer-events: none;
+}
+.brand-panel::after {
+  content: '';
+  position: absolute; bottom: -100px; left: -100px;
+  width: 440px; height: 440px;
+  background: radial-gradient(circle, rgba(226,0,26,0.14) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Logo */
+.brand-logo { display: flex; align-items: center; gap: 14px; z-index: 1; }
+.logo-mark {
+  width: 52px; height: 52px;
+  background: var(--edeka-yellow); border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.logo-mark svg { width: 30px; height: 30px; }
+.logo-name { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -0.3px; line-height: 1; }
+.logo-tagline { font-size: 11px; color: var(--edeka-yellow); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; margin-top: 3px; }
+
+/* Headline */
+.brand-content { z-index: 1; }
+.brand-headline {
+  font-size: clamp(28px, 3vw, 42px);
+  font-weight: 700; color: #fff;
+  line-height: 1.18; margin-bottom: 16px;
+  letter-spacing: -0.6px;
+}
+.brand-headline span { color: var(--edeka-yellow); }
+.brand-desc { font-size: 15px; color: rgba(255,255,255,0.5); line-height: 1.7; max-width: 380px; }
+
+/* Feature Items */
+.brand-features { display: flex; flex-direction: column; gap: 12px; z-index: 1; }
+.feature-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: var(--radius-md);
+  transition: background var(--transition);
+}
+.feature-item:hover { background: rgba(255,255,255,0.08); }
+.feature-icon {
+  width: 38px; height: 38px;
+  background: rgba(242,195,0,0.12); border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.feature-text { font-size: 13px; color: rgba(255,255,255,0.7); font-weight: 500; line-height: 1.4; }
+
+/* Version tag */
+.brand-footer {
+  z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.version-tag {
+  font-size: 11px; color: rgba(255,255,255,0.25);
+  display: flex; align-items: center; gap: 6px;
+}
+.version-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-success); }
+.status-online { font-size: 11px; color: rgba(255,255,255,0.3); display: flex; align-items: center; gap: 5px; }
+
+/* ── RIGHT — FORM PANEL ───────────────────────── */
+.form-panel {
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  padding: 48px 40px;
+  background: var(--color-surface);
+  position: relative;
+  transition: background var(--transition);
+}
+
+/* Top accent bar (mobile) */
+.form-panel::before {
+  content: '';
+  display: none;
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, var(--edeka-yellow), var(--edeka-red));
+}
+
+/* Theme toggle */
+.theme-toggle {
+  position: absolute; top: 24px; right: 24px;
+  width: 36px; height: 36px; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  display: flex; align-items: center; justify-content: center;
+  transition: all var(--transition);
+}
+.theme-toggle:hover { background: var(--color-surface-2); color: var(--color-text); }
+
+.login-box { width: 100%; max-width: 400px; }
+
+/* Header */
+.login-header { margin-bottom: 36px; }
+.login-eyebrow {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--edeka-red);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 6px;
+}
+.login-eyebrow::before { content: ''; display: block; width: 20px; height: 2px; background: var(--edeka-red); border-radius: 2px; }
+.login-title { font-size: 28px; font-weight: 700; color: var(--color-text); letter-spacing: -0.5px; margin-bottom: 6px; }
+.login-subtitle { font-size: 14px; color: var(--color-text-muted); line-height: 1.5; }
+
+/* Form elements */
+.form { display: flex; flex-direction: column; gap: 18px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-label { font-size: 13px; font-weight: 600; color: var(--color-text); }
+
+.input-wrap { position: relative; display: flex; align-items: center; }
+.input-icon {
+  position: absolute; right: 14px;
+  color: var(--color-text-faint); font-size: 16px; pointer-events: none;
+  transition: color var(--transition);
+}
+.form-input {
+  width: 100%; padding: 11px 44px 11px 14px;
+  background: var(--color-surface-2);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 14px; color: var(--color-text);
+  transition: all var(--transition);
+}
+.form-input:focus {
+  outline: none;
+  border-color: var(--edeka-yellow);
+  background: var(--color-surface);
+  box-shadow: 0 0 0 3px rgba(242,195,0,0.15);
+}
+.form-input:focus + .input-icon,
+.form-input:focus ~ .input-icon { color: var(--color-text-muted); }
+.form-input::placeholder { color: var(--color-text-faint); }
+.form-input.has-error { border-color: var(--color-error); }
+.form-input.has-error:focus { box-shadow: 0 0 0 3px rgba(198,40,40,0.12); }
+
+/* Password toggle */
+.pwd-toggle {
+  position: absolute; left: 14px;
+  color: var(--color-text-faint); font-size: 16px;
+  cursor: pointer; padding: 4px;
+  transition: color var(--transition); line-height: 1;
+}
+.pwd-toggle:hover { color: var(--color-text-muted); }
+.form-input.with-toggle { padding-left: 42px; }
+
+/* Error message */
+.error-msg {
+  display: none; align-items: center; gap: 8px;
+  padding: 12px 14px;
+  background: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-md);
+  font-size: 13px; color: var(--color-error); font-weight: 500;
+  animation: slideDown 0.2s ease;
+}
+.error-msg.visible { display: flex; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+.error-icon { font-size: 15px; flex-shrink: 0; }
+
+/* Submit button */
+.btn-login {
+  width: 100%; padding: 13px;
+  background: var(--edeka-red); color: white;
+  border-radius: var(--radius-md);
+  font-size: 15px; font-weight: 600; letter-spacing: 0.01em;
+  transition: all var(--transition);
+  position: relative; overflow: hidden;
+  margin-top: 4px;
+}
+.btn-login:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+.btn-login:active:not(:disabled) { transform: translateY(0); }
+.btn-login:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+/* Ripple */
+.btn-login::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(255,255,255,0.15);
+  opacity: 0; transition: opacity 0.2s;
+}
+.btn-login:active::after { opacity: 1; }
+/* Spinner */
+.btn-inner { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.spinner {
+  display: none;
+  width: 18px; height: 18px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.btn-login.loading .btn-text { display: none; }
+.btn-login.loading .spinner { display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Divider */
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  color: var(--color-text-faint); font-size: 12px;
+  margin: 4px 0;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--color-border);
+}
+
+/* Demo hint */
+.demo-hint {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex; align-items: flex-start; gap: 10px;
+}
+.demo-hint-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.demo-hint-text { font-size: 12px; color: var(--color-text-muted); line-height: 1.5; }
+.demo-hint-text strong { color: var(--color-text); font-weight: 600; }
+
+/* Footer */
+.form-footer {
+  margin-top: 32px; text-align: center;
+  font-size: 12px; color: var(--color-text-faint); line-height: 1.7;
+}
+.form-footer a { color: var(--color-text-muted); text-decoration: underline; text-underline-offset: 2px; }
+.form-footer a:hover { color: var(--color-text); }
+
+/* ── RESPONSIVE ───────────────────────────────── */
+@media (max-width: 768px) {
+  .page { grid-template-columns: 1fr; }
+  .brand-panel { display: none; }
+  .form-panel { padding: 40px 24px; background: var(--color-bg); }
+  .form-panel::before { display: block; }
+  .login-box { max-width: 100%; }
+}
+@media (max-width: 380px) {
+  .form-panel { padding: 32px 20px; }
+  .login-title { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <!-- ── BRAND PANEL ── -->
+  <aside class="brand-panel">
+    <div class="brand-logo">
+      <div class="logo-mark">
+        <svg viewBox="0 0 30 30" fill="none">
+          <rect x="3" y="3" width="10" height="10" rx="2" fill="#1a1a1a"/>
+          <rect x="17" y="3" width="10" height="10" rx="2" fill="#1a1a1a"/>
+          <rect x="3" y="17" width="10" height="10" rx="2" fill="#1a1a1a"/>
+          <rect x="17" y="17" width="10" height="10" rx="2" fill="#1a1a1a"/>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-name">EDEKA Lager</div>
+        <div class="logo-tagline">Wir lieben Lebensmittel</div>
+      </div>
+    </div>
+
+    <div class="brand-content">
+      <h1 class="brand-headline">
+        Ihr tägliches<br>
+        <span>Lager im Blick.</span>
+      </h1>
+      <p class="brand-desc">
+        Echtzeit-Bestandsverwaltung für Obst &amp; Gemüse —
+        schnell, übersichtlich und mobil.
+      </p>
+    </div>
+
+    <div class="brand-features">
+      <div class="feature-item">
+        <div class="feature-icon">📦</div>
+        <div class="feature-text">Täglicher Bestandscheck — schnell &amp; einfach</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📊</div>
+        <div class="feature-text">Verbrauchsanalyse &amp; Trendauswertung</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">📱</div>
+        <div class="feature-text">Telegram-Benachrichtigungen &amp; Tagesberichte</div>
+      </div>
+    </div>
+
+    <div class="brand-footer">
+      <div class="version-tag">
+        <div class="version-dot"></div>
+        v1.0 — Live
+      </div>
+      <div class="status-online">
+        <span>🟢</span> System online
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── FORM PANEL ── -->
+  <main class="form-panel">
+    <button class="theme-toggle" id="theme-toggle" aria-label="Design umschalten">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+
+    <div class="login-box">
+      <div class="login-header">
+        <div class="login-eyebrow">Lagerverwaltung</div>
+        <h2 class="login-title">Willkommen zurück</h2>
+        <p class="login-subtitle">Bitte melden Sie sich an, um fortzufahren.</p>
+      </div>
+
+      <form class="form" id="login-form" novalidate>
+        <!-- Username -->
+        <div class="form-group">
+          <label class="form-label" for="username">Benutzername</label>
+          <div class="input-wrap">
+            <input
+              class="form-input" type="text"
+              id="username" name="username"
+              placeholder="z.B. admin"
+              autocomplete="username" required
+              oninput="clearError()">
+            <span class="input-icon">👤</span>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label class="form-label" for="password">Passwort</label>
+          <div class="input-wrap">
+            <input
+              class="form-input with-toggle" type="password"
+              id="password" name="password"
+              placeholder="••••••••"
+              autocomplete="current-password" required
+              oninput="clearError()">
+            <button type="button" class="pwd-toggle" id="pwd-toggle" aria-label="Passwort anzeigen" title="Passwort anzeigen/verbergen">
+              👁
+            </button>
+            <span class="input-icon">🔒</span>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div class="error-msg" id="error-msg" role="alert">
+          <span class="error-icon">⚠️</span>
+          <span id="error-text">Benutzername oder Passwort falsch.</span>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn-login" id="login-btn">
+          <div class="btn-inner">
+            <span class="btn-text">Anmelden</span>
+            <div class="spinner"></div>
+          </div>
+        </button>
+      </form>
+
+      <div class="divider">oder</div>
+
+      <!-- Demo Hint -->
+      <div class="demo-hint">
+        <div class="demo-hint-icon">💡</div>
+        <div class="demo-hint-text">
+          <strong>Zugang:</strong> Verwenden Sie Ihre vom Administrator
+          erhaltenen Anmeldedaten.
+        </div>
+      </div>
+
+      <div class="form-footer">
+        EDEKA Lagerverwaltung &copy; 2026<br>
+        Alle Rechte vorbehalten
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ── BEREITS EINGELOGGT? ── */
+(function () {
+  const t = sessionStorage.getItem('token');
+  if (t) window.location.href = 'dashboard.html';
+})();
+
+/* ── THEME TOGGLE ── */
+(function () {
+  const btn = document.getElementById('theme-toggle');
+  const root = document.documentElement;
+  const stored = localStorage.getItem('theme');
+  let theme = stored || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  root.setAttribute('data-theme', theme);
+
+  const sun = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <circle cx="12" cy="12" r="5"/>
+    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+  </svg>`;
+  const moon = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </svg>`;
+
+  function applyTheme() {
+    root.setAttribute('data-theme', theme);
+    btn.innerHTML = theme === 'dark' ? sun : moon;
+    localStorage.setItem('theme', theme);
+  }
+
+  applyTheme();
+  btn.addEventListener('click', () => {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    applyTheme();
+  });
+})();
+
+/* ── PASSWORD VISIBILITY ── */
+(function () {
+  const input = document.getElementById('password');
+  const toggle = document.getElementById('pwd-toggle');
+  let visible = false;
+  toggle.addEventListener('click', () => {
+    visible = !visible;
+    input.type = visible ? 'text' : 'password';
+    toggle.textContent = visible ? '🙈' : '👁';
+    toggle.title = visible ? 'Passwort verbergen' : 'Passwort anzeigen';
+    input.focus();
+  });
+})();
+
+/* ── ERROR CLEAR ── */
+function clearError() {
+  document.getElementById('error-msg').classList.remove('visible');
+  document.getElementById('username').classList.remove('has-error');
+  document.getElementById('password').classList.remove('has-error');
+}
+
+/* ── LOGIN FORM ── */
+document.getElementById('login-form').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const btn      = document.getElementById('login-btn');
+  const errorEl  = document.getElementById('error-msg');
+  const errorTxt = document.getElementById('error-text');
+  const usernameEl = document.getElementById('username');
+  const passwordEl = document.getElementById('password');
+  const username = usernameEl.value.trim();
+  const password = passwordEl.value;
+
+  /* Client-side validation */
+  if (!username || !password) {
+    errorTxt.textContent = 'Bitte alle Felder ausfüllen.';
+    errorEl.classList.add('visible');
+    if (!username) usernameEl.classList.add('has-error');
+    if (!password) passwordEl.classList.add('has-error');
+    return;
+  }
+
+  btn.classList.add('loading');
+  btn.disabled = true;
+  errorEl.classList.remove('visible');
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      let msg = data.message || 'Anmeldung fehlgeschlagen.';
+      if (res.status === 401) msg = 'Benutzername oder Passwort falsch.';
+      if (res.status === 403) msg = 'Ihr Konto ist deaktiviert. Bitte wenden Sie sich an den Administrator.';
+      if (res.status === 429) msg = 'Zu viele Versuche. Bitte warten Sie kurz.';
+      if (res.status >= 500) msg = 'Serverfehler. Bitte versuchen Sie es später erneut.';
+      errorTxt.textContent = msg;
+      errorEl.classList.add('visible');
+      passwordEl.classList.add('has-error');
+      passwordEl.value = '';
+      passwordEl.focus();
+      return;
+    }
+
+    /* Erfolg — Token speichern */
+    sessionStorage.setItem('token', data.token);
+    sessionStorage.setItem('user', JSON.stringify(data.user));
+
+    /* Sanfte Weiterleitungsanimation */
+    btn.classList.remove('loading');
+    btn.style.background = '#2e7d32';
+    btn.querySelector('.btn-text').style.display = 'flex';
+    btn.querySelector('.btn-text').textContent = '✓ Angemeldet';
+    btn.querySelector('.spinner').style.display = 'none';
+
+    setTimeout(() => { window.location.href = 'dashboard.html'; }, 500);
+
+  } catch (err) {
+    errorTxt.textContent = 'Verbindungsfehler. Bitte Internetverbindung prüfen.';
+    errorEl.classList.add('visible');
+    btn.classList.remove('loading');
+    btn.disabled = false;
+  } finally {
+    if (!window.location.href.includes('dashboard')) {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+});
+
+/* ── ENTER KEY SHORTCUTS ── */
+document.getElementById('username').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('password').focus(); }
+});
+</script>
+</body>
+</html>

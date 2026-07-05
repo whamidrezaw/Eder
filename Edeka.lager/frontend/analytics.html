@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analyse &amp; Berichte — EDEKA Lager</title>
+<link rel="stylesheet" href="/assets/shared.css">
+<style>
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .period-select { max-width: 160px; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar" id="sidebar"></aside>
+
+<div class="main-area">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <div>
+        <div class="topbar-title">📊 Analyse &amp; Berichte</div>
+        <div class="topbar-date" id="topbar-date"></div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="icon-btn" onclick="toggleTheme()" title="Theme wechseln">🌓</button>
+      <button class="btn btn-primary" onclick="handleSendReport()">📤 Bericht jetzt senden</button>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <div class="filter-tabs" style="margin-bottom:18px">
+      <button class="filter-tab active" id="tab-btn-today" onclick="switchTab('today')">📅 Heute</button>
+      <button class="filter-tab" id="tab-btn-trend" onclick="switchTab('trend')">📈 Verlauf</button>
+    </div>
+
+    <!-- ── TAB: Heute ─────────────────────────────────────────── -->
+    <div class="tab-content active" id="tab-today">
+      <div class="table-header-row" style="background:transparent; border:none; padding:0 0 12px;">
+        <div>
+          <div class="table-title">Berichte von heute</div>
+          <div class="table-meta" id="today-meta">…</div>
+        </div>
+        <div class="table-actions">
+          <button class="btn btn-ghost" onclick="downloadReportFile('excel', {})">📊 Excel (Live)</button>
+          <button class="btn btn-ghost" onclick="downloadReportFile('pdf', {})">📄 PDF (Live)</button>
+        </div>
+      </div>
+
+      <div class="report-list" id="today-list">
+        <div class="skeleton" style="height:60px"></div>
+      </div>
+      <div class="empty-state" id="today-empty" style="display:none">
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">Heute noch kein Bericht gesendet</div>
+        <div class="empty-desc">Klicke auf „Bericht jetzt senden", um den ersten Bericht des Tages zu erstellen.</div>
+      </div>
+    </div>
+
+    <!-- ── TAB: Verlauf ───────────────────────────────────────── -->
+    <div class="tab-content" id="tab-trend">
+      <div class="toolbar" style="margin-bottom:16px">
+        <select class="form-ctrl period-select" id="period-select" onchange="loadTrend()">
+          <option value="7">Letzte 7 Tage</option>
+          <option value="14" selected>Letzte 14 Tage</option>
+          <option value="30">Letzte 30 Tage</option>
+          <option value="90">Letzte 90 Tage</option>
+        </select>
+      </div>
+
+      <div class="kpi-grid" id="trend-kpi-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:20px"></div>
+
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-card-head">
+            <div>
+              <div class="chart-card-title">Verbrauch pro Tag</div>
+              <div class="chart-card-sub">Basierend auf dem Tagesabschluss (00:00)</div>
+            </div>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="trend-chart" height="100"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-head">
+            <div class="chart-card-title">Meistverbraucht</div>
+          </div>
+          <div class="top-list" id="top-products-list"></div>
+        </div>
+      </div>
+
+      <div class="section-label">Verbrauch nach Kategorie</div>
+      <div class="kpi-grid" id="category-breakdown-grid"></div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script src="/assets/shared.js"></script>
+<script src="/assets/chart.umd.min.js"></script>
+<script>
+'use strict';
+
+let trendChart = null;
+
+function switchTab(tab) {
+  document.getElementById('tab-today').classList.toggle('active', tab === 'today');
+  document.getElementById('tab-trend').classList.toggle('active', tab === 'trend');
+  document.getElementById('tab-btn-today').classList.toggle('active', tab === 'today');
+  document.getElementById('tab-btn-trend').classList.toggle('active', tab === 'trend');
+  if (tab === 'trend' && !trendChart) loadTrend();
+}
+window.switchTab = switchTab;
+
+async function handleSendReport() {
+  await sendReportNow();
+  await loadToday();
+}
+window.handleSendReport = handleSendReport;
+
+// ── Heute ────────────────────────────────────────────────────────
+function fmtNum(n) {
+  return Number(n ?? 0).toLocaleString('de-DE', { maximumFractionDigits: 1 });
+}
+
+async function loadToday() {
+  try {
+    const data = await api('/api/reports/today');
+    const list = document.getElementById('today-list');
+    const empty = document.getElementById('today-empty');
+
+    document.getElementById('today-meta').textContent =
+      data.reports.length > 0 ? `${data.reports.length} Bericht(e) heute` : '';
+
+    if (data.reports.length === 0) {
+      list.innerHTML = '';
+      empty.style.display = 'flex';
+      return;
+    }
+    empty.style.display = 'none';
+
+    list.innerHTML = data.reports.slice().reverse().map(r => `
+      <div class="report-item">
+        <div class="report-time">${fmtTime(r.sentAt)}</div>
+        <div class="report-meta">
+          📦 ${fmtNum(r.totalStock)} gesamt · 📉 −${fmtNum(r.totalConsumed)} seit Mitternacht · ${r.productCount} Artikel
+          ${r.reportSent ? '' : ' · <span style="color:var(--color-error)">Telegram fehlgeschlagen</span>'}
+        </div>
+        <div class="report-acts">
+          <button class="row-act" title="Excel" onclick="downloadReportFile('excel', {logId:'${r._id}'})">📊</button>
+          <button class="row-act" title="PDF" onclick="downloadReportFile('pdf', {logId:'${r._id}'})">📄</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    showToast('⚠️ ' + e.message, 'err');
+  }
+}
+
+// ── Verlauf ──────────────────────────────────────────────────────
+function getChartColors() {
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return {
+    grid: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    text: dark ? '#7a7974' : '#6b6a66'
+  };
+}
+
+function fmtShort(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
+}
+
+async function loadTrend() {
+  const days = parseInt(document.getElementById('period-select').value) || 14;
+  try {
+    const data = await api(`/api/reports/analytics?days=${days}`);
+    renderTrendKpis(data.summary || {});
+    renderTrendChart(data.trend || []);
+    renderTopProducts(data.topProducts || []);
+    renderCategoryBreakdown(data.summary?.categoryBreakdown || {});
+  } catch (e) {
+    showToast('⚠️ ' + e.message, 'err');
+  }
+}
+window.loadTrend = loadTrend;
+
+function renderTrendKpis(summary) {
+  document.getElementById('trend-kpi-grid').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Erfasste Tage</span></div>
+      <div class="kpi-val">${summary.totalDays ?? 0}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Verbrauch gesamt</span></div>
+      <div class="kpi-val">${fmtNum(summary.totalConsumed ?? 0)}</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">Ø pro Tag</span></div>
+      <div class="kpi-val">${fmtNum(summary.avgDailyConsumed ?? 0)}</div>
+    </div>
+  `;
+}
+
+function renderTrendChart(trend) {
+  const colors = getChartColors();
+  const ctx = document.getElementById('trend-chart').getContext('2d');
+  if (trendChart) trendChart.destroy();
+
+  if (trend.length === 0) {
+    return;
+  }
+
+  trendChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: trend.map(t => fmtShort(t.date)),
+      datasets: [{
+        label: 'Verbrauch',
+        data: trend.map(t => t.totalConsumed),
+        backgroundColor: 'rgba(226,0,26,0.7)',
+        borderColor: 'rgba(226,0,26,1)',
+        borderWidth: 0,
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: document.documentElement.getAttribute('data-theme') === 'dark' ? '#1c1c1a' : '#1a1a1a',
+          titleColor: '#fff',
+          bodyColor: 'rgba(255,255,255,0.7)',
+          padding: 10,
+          callbacks: { label: c => fmtNum(c.parsed.y) + ' Einheiten' }
+        }
+      },
+      scales: {
+        x: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 11 } } },
+        y: { grid: { color: colors.grid }, ticks: { color: colors.text, font: { size: 11 } }, beginAtZero: true }
+      }
+    }
+  });
+}
+
+function renderTopProducts(products) {
+  const container = document.getElementById('top-products-list');
+  if (!products.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:20px"><div class="empty-icon">📭</div><div class="empty-desc">Keine Daten im gewählten Zeitraum</div></div>';
+    return;
+  }
+  const max = products[0]?.totalConsumed || 1;
+  container.innerHTML = products.map((p, i) => `
+    <div class="top-item">
+      <div class="top-rank">${i + 1}</div>
+      <div class="top-info">
+        <div class="top-name">${p.emoji || '📦'} ${escapeHtml(p.name)}${p.isBio ? ' 🌱' : ''}</div>
+        <div class="top-cat">${escapeHtml(p.category)} · ${escapeHtml(p.unit)}</div>
+      </div>
+      <div class="top-bar-wrap">
+        <div class="top-bar"><div class="top-bar-fill" style="width:${Math.round((p.totalConsumed / max) * 100)}%"></div></div>
+      </div>
+      <div class="top-val">${fmtNum(p.totalConsumed)}</div>
+    </div>
+  `).join('');
+}
+
+function renderCategoryBreakdown(breakdown) {
+  const entries = Object.entries(breakdown).sort((a, b) => b[1] - a[1]);
+  const grid = document.getElementById('category-breakdown-grid');
+  if (entries.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="padding:20px; grid-column:1/-1"><div class="empty-desc">Keine Daten im gewählten Zeitraum</div></div>';
+    return;
+  }
+  grid.innerHTML = entries.map(([cat, val]) => `
+    <div class="kpi-card">
+      <div class="kpi-top"><span class="kpi-label">${escapeHtml(cat)}</span></div>
+      <div class="kpi-val">${fmtNum(val)}</div>
+      <div class="kpi-delta">Verbrauch im Zeitraum</div>
+    </div>
+  `).join('');
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadToday);
+</script>
+</body>
+</html>

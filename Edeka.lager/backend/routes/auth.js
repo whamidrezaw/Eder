@@ -137,3 +137,6 @@ router.put('/change-password', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// Nur für Tests exportiert — siehe routes/reports.js.
+module.exports.__test__ = { safeIp };

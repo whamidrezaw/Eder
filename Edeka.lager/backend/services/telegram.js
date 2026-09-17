@@ -84,4 +84,4 @@ function buildTelegramText(products) {
   return lines.join('\n');
 }
 
-module.exports = { sendTelegram, buildTelegramText };
+module.exports = { sendTelegram, buildTelegramText, escapeMarkdown };

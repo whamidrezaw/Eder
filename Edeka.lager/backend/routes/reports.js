@@ -299,3 +299,7 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 module.exports = router;
+
+// Nur für Tests exportiert. Der Router selbst bleibt der Default-Export,
+// damit app.js unverändert `require('./routes/reports')` benutzen kann.
+module.exports.__test__ = { pickDailyRepresentatives };

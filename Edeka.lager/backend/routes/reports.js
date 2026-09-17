@@ -239,13 +239,32 @@ router.post('/send-now', auth, async (req, res) => {
 // ── GET /api/reports/history?limit=30 ───────────────────────────
 // یک ردیف به ازای هر روز (نماینده‌ی همان روز) — برای صفحه‌ی تاریخچه
 router.get('/history', auth, async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 30, 365);
+  const limit = require('../lib/validate')
+    .parseRangeInt(req.query.limit, { min: 1, max: 365, standard: 30 });
+  if (limit === null) {
+    return res.status(400).json({
+      message: 'Ungültiger Wert für limit. Erwartet wird eine ganze Zahl von 1 bis 365.'
+    });
+  }
   // Fenster nach Datum, nicht nach Protokollanzahl — siehe
   // repraesentantenIds(). Vorher fielen bei vielen Berichten pro Tag
   // die älteren Tage still aus der Liste.
   const repIds  = await repraesentantenIds(limit);
   const repLogs = await DailyLog.find({ _id: { $in: repIds } }).sort({ date: -1 });
 
+  // Anzahl der manuellen Berichte je Tag.
+  //
+  // Vorher wurde dafür das vorab geladene Fenster gefiltert — also genau
+  // die Liste, die durch limit * 8 abgeschnitten war. Tage außerhalb des
+  // Fensters bekamen eine 0, obwohl an ihnen berichtet wurde. Gezählt
+  // wird jetzt direkt in der Datenbank, für genau die angezeigten Tage.
+  const datumsListe = repLogs.map(l => l.date);
+  const zaehlung = await DailyLog.aggregate([
+    { $match: { date: { $in: datumsListe }, type: 'manual' } },
+    { $project: { date: 1 } },
+    { $group: { _id: '$date', anzahl: { $sum: 1 } } }
+  ]);
+  const manuelleProTag = new Map(zaehlung.map(z => [z._id, z.anzahl]));
   const result = repLogs.map(log => ({
     _id:           log._id,
     date:          log.date,
@@ -255,7 +274,7 @@ router.get('/history', auth, async (req, res) => {
     totalConsumed: log.snapshot.reduce((s, p) => s + (p.consumed || 0), 0),
     productCount:  log.snapshot.length,
     categories:    [...new Set(log.snapshot.map(p => p.category).filter(Boolean))],
-    reportsToday:  rawLogs.filter(l => l.date === log.date && l.type === 'manual').length,
+    reportsToday:  manuelleProTag.get(log.date) || 0,
     reportSent:    log.reportSent || false
   }));
 

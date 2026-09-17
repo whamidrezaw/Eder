@@ -266,3 +266,38 @@ test('/analytics verhält sich bei negativem days-Wert vernünftig', async () =>
       'einem leeren Diagramm führen — entweder 400 oder ein sinnvoller Standard.');
   }
 });
+
+// ── Nachtrag C2: /history ─────────────────────────────────────────
+
+test('/history zählt die manuellen Berichte je Tag vollständig', async () => {
+  // 20 Tage mit je 20 Protokollen: eines auto-midnight, 19 manuell.
+  // Vorher wurde diese Zahl aus dem abgeschnittenen rawLogs-Fenster
+  // gefiltert — Tage außerhalb des Fensters bekamen eine 0.
+  await seedLogs({ tage: 20, proTag: 20, produkte: 1 });
+
+  const r = await req('/api/reports/history?limit=20', { token });
+  assert.equal(r.status, 200, r.text);
+
+  const liste = Array.isArray(r.body)
+    ? r.body
+    : (r.body.history || r.body.rows || r.body.days || r.body.entries);
+  assert.ok(Array.isArray(liste), `unerwartete Antwortform: ${JSON.stringify(r.body).slice(0, 200)}`);
+  assert.equal(liste.length, 20);
+
+  for (const zeile of liste) {
+    assert.equal(zeile.reportsToday, 19,
+      `${zeile.date}: reportsToday ist ${zeile.reportsToday}, erwartet 19`);
+  }
+});
+
+test('/history weist einen unsinnigen limit-Wert mit 400 ab', async () => {
+  await seedLogs({ tage: 3, proTag: 1, produkte: 1 });
+
+  for (const schlecht of ['-5', '0', '366', 'abc']) {
+    const r = await req(`/api/reports/history?limit=${schlecht}`, { token });
+    assert.equal(r.status, 400, `limit=${schlecht} ergab ${r.status}: ${r.text}`);
+  }
+
+  const gut = await req('/api/reports/history?limit=3', { token });
+  assert.equal(gut.status, 200, gut.text);
+});

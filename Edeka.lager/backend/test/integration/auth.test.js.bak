@@ -56,16 +56,13 @@ test('Token eines nachträglich deaktivierten Benutzers wird abgewiesen', async 
   assert.equal(after.status, 403, 'Deaktivierung muss sofort wirken');
 });
 
-// Vorher fing Mongoose den Operator durch seine Typprüfung ab und die
-// Route antwortete mit 401. Seit der Operator-Sperre wird die Anfrage
-// schon davor mit 400 abgewiesen — in beiden Fällen ohne Token, aber der
-// frühere Abbruch ist der ehrlichere.
-test('Operator-Objekt als Benutzername wird abgewiesen, ohne Token ausgeliefert', async () => {
+// ── ROT: NoSQL-Operator im Login-Feld (Batch A) ──────────────────────
+test('Operator-Objekt als Benutzername ergibt 401, nicht den ersten Treffer', async () => {
   await makeUser({ username: 'anna' });
   const r = await req('/api/auth/login', {
     method: 'POST',
     body: { username: { $ne: null }, password: 'egal' }
   });
-  assert.equal(r.status, 400);
+  assert.equal(r.status, 401);
   assert.equal(r.body && r.body.token, undefined);
 });

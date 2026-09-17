@@ -261,17 +261,7 @@ router.post('/reset-logs', auth, async (req, res) => {
   let filter = {};
 
   if (scope === 'daily') {
-    {
-      // Ungeprüft wanderte dieser Wert direkt in den Mongo-Filter. Mit
-      // { $ne: null } wurde aus "lösche heute" ein "lösche alles" — die
-      // Antwort meldete weiterhin scope: "daily".
-      const rohDatum = req.body?.date ?? req.query?.date ?? todayStr;
-      const gutesDatum = require('../lib/validate').parseIsoDate(rohDatum);
-      if (!gutesDatum) {
-        return res.status(400).json({ message: 'Ungültiges Datum. Erwartet wird JJJJ-MM-TT.' });
-      }
-      filter = { date: gutesDatum };
-    }
+    filter = { date: req.body?.date || req.query?.date || todayStr };
   } else if (scope === 'weekly') {
     const since = new Date(); since.setDate(since.getDate() - 7);
     filter = { date: { $gte: berlinDateString(since) } };

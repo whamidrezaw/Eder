@@ -52,18 +52,11 @@ test('ungültiges Datumsformat wird mit 400 abgewiesen', async () => {
   assert.equal(await DailyLog.countDocuments({}), 3);
 });
 
-test('Kontrolle: /export mit gültigem Datum findet die Route', async () => {
+test('Operator im Query-String von /export wird mit 400 abgewiesen', async () => {
   const token = await makeAdminToken();
   await seedLogs();
-  const r = await req('/api/reports/export?type=excel&date=2026-05-02', { token });
-  assert.notEqual(r.status, 404, `Route nicht gefunden — die geprüfte URL stimmt nicht (Status ${r.status})`);
-});
-
-test('unbrauchbares Datum bei /export wird mit 400 abgewiesen', async () => {
-  const token = await makeAdminToken();
-  await seedLogs();
-  const r = await req('/api/reports/export?type=excel&date=kein-datum', { token });
-  assert.equal(r.status, 400);
+  const r = await req('/api/reports/export?type=excel&date[$ne]=x', { token });
+  assert.equal(r.status, 400, 'Operator-Objekte dürfen nicht in die Mongo-Abfrage gelangen');
 });
 
 test('reset-logs ist ohne Token nicht erreichbar', async () => {

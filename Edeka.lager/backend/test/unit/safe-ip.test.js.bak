@@ -30,18 +30,11 @@ test('überlange Eingabe wird verworfen', () => {
   assert.equal(safeIp('a:'.repeat(40)), '');
 });
 
-// Node liefert IPv4-Clients auf einem Dual-Stack-Socket in dieser Form.
-// Bewusste Entscheidung: auf reine IPv4 zurückführen, damit der
-// Login-Verlauf einheitlich bleibt.
-test('IPv4-mapped IPv6 wird zu reiner IPv4 normalisiert', () => {
-  assert.equal(safeIp('::ffff:127.0.0.1'), '127.0.0.1');
-  assert.equal(safeIp('::ffff:192.168.1.10'), '192.168.1.10');
-});
-
-test('echte IPv6 bleibt unverändert', () => {
-  assert.equal(safeIp('2001:db8::1'), '2001:db8::1');
-});
-
-test('ungültige IPv4 hinter ::ffff: wird verworfen', () => {
-  assert.equal(safeIp('::ffff:999.1.1.1'), '');
+// ── ROT: Fehler, der in Batch A behoben wird ─────────────────────────
+// Node liefert IPv4-Clients auf einem Dual-Stack-Socket als "::ffff:1.2.3.4".
+// safeIp() verwirft diese Form, weil sie Punkte enthält und damit an der
+// IPv6-Prüfung (/^[0-9a-fA-F:]+$/) scheitert. Ergebnis: Der Login-Verlauf
+// speichert für die meisten echten Logins eine leere IP.
+test('IPv4-mapped IPv6 wird akzeptiert (Node liefert diese Form)', () => {
+  assert.equal(safeIp('::ffff:127.0.0.1'), '::ffff:127.0.0.1');
 });

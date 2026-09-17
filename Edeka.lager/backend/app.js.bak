@@ -63,11 +63,6 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // ── API Routes ────────────────────────────────────────────────────
-
-// ── Grundsicherung gegen Mongo-Operatoren ─────────────────────────
-// Muss nach express.json() und vor den API-Routen stehen.
-app.use(require('./lib/sanitize').rejectMongoOperators);
-
 app.use('/api/auth',       require('./routes/auth'));
 app.use('/api/products',   require('./routes/products'));
 app.use('/api/reports',    require('./routes/reports'));

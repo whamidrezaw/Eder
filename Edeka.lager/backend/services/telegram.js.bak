@@ -73,7 +73,7 @@ function buildTelegramText(products) {
       .forEach(p => {
         const consumed = Math.max(0, (p.yesterdayStock ?? 0) - (p.currentStock ?? 0));
         const bioTag = p.isBio ? '🌱 ' : '';
-        let line = `  ${escapeMarkdown(p.emoji || '📦')} ${bioTag}${escapeMarkdown(p.name)} (${escapeMarkdown(p.unit)}): *${p.currentStock}*`;
+        let line = `  ${p.emoji || '📦'} ${bioTag}${escapeMarkdown(p.name)} (${escapeMarkdown(p.unit)}): *${p.currentStock}*`;
         if (consumed > 0) line += ` (−${consumed})`;
         lines.push(line);
       });

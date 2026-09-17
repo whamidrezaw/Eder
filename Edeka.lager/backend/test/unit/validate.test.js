@@ -73,3 +73,32 @@ test('checkJwtSecret akzeptiert einen echten Schlüssel', () => {
   const echt = require('crypto').randomBytes(48).toString('base64url');
   assert.equal(checkJwtSecret(echt), null);
 });
+
+// ── Neu in C2: Bereichsprüfer für days und limit ──────────────────
+const { parseRangeInt } = require('../../lib/validate');
+const BEREICH = { min: 1, max: 90, standard: 14 };
+
+test('parseRangeInt nimmt Werte im Bereich an', () => {
+  assert.equal(parseRangeInt('7', BEREICH), 7);
+  assert.equal(parseRangeInt(30, BEREICH), 30);
+  assert.equal(parseRangeInt('90', BEREICH), 90);
+  assert.equal(parseRangeInt('1', BEREICH), 1);
+});
+
+test('parseRangeInt gibt bei fehlendem Wert den Standard zurück', () => {
+  assert.equal(parseRangeInt(undefined, BEREICH), 14);
+  assert.equal(parseRangeInt(null, BEREICH), 14);
+  assert.equal(parseRangeInt('', BEREICH), 14);
+});
+
+test('parseRangeInt lehnt ab, was nicht in den Bereich passt', () => {
+  assert.equal(parseRangeInt('-5', BEREICH),  null, 'negative Werte führten zu einem leeren Diagramm');
+  assert.equal(parseRangeInt('0', BEREICH),   null);
+  assert.equal(parseRangeInt('91', BEREICH),  null);
+  assert.equal(parseRangeInt('7.5', BEREICH), null);
+  assert.equal(parseRangeInt('abc', BEREICH), null);
+  assert.equal(parseRangeInt(['7'], BEREICH), null);
+  assert.equal(parseRangeInt({}, BEREICH),    null);
+  assert.equal(parseRangeInt(true, BEREICH),  null);
+  assert.equal(parseRangeInt(Infinity, BEREICH), null);
+});

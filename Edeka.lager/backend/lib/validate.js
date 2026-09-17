@@ -89,4 +89,21 @@ function checkJwtSecret(secret) {
   return null;
 }
 
-module.exports = { parseIsoDate, parseStock, normalizeIp, checkJwtSecret };
+/**
+ * Ganzzahliger Bereichsparameter aus einer Query (days, limit).
+ *
+ * Gibt die Zahl zurück, den Standard bei fehlendem Wert, und null bei
+ * allem, was nicht hineinpasst. Vorher stand dort
+ * Math.min(parseInt(days) || 14, 90): das ließ negative Werte durch, und
+ * daraus wurden limit(-40) und slice(0, -5) — beides verkürzte still,
+ * bis das Diagramm leer war, ohne dass jemand einen Fehler sah.
+ */
+function parseRangeInt(value, { min, max, standard }) {
+  if (value === undefined || value === null || value === '') return standard;
+  if (typeof value === 'boolean' || typeof value === 'object') return null;
+  const n = Number(value);
+  if (!Number.isInteger(n) || n < min || n > max) return null;
+  return n;
+}
+
+module.exports = { parseIsoDate, parseStock, parseRangeInt, normalizeIp, checkJwtSecret };

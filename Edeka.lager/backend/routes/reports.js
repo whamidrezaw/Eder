@@ -34,6 +34,33 @@ function pickDailyRepresentatives(logs) {
   return Object.values(byDate).sort((a, b) => b.date.localeCompare(a.date));
 }
 
+/**
+ * Bestimmt für die letzten `anzahl` Tage je Tag das maßgebliche Protokoll
+ * und gibt nur deren IDs zurück.
+ *
+ * Vorher wurde das Fenster mit limit(anzahl * 8) begrenzt — also nach der
+ * ANZAHL der Protokolle statt nach dem Datum. Die Annahme "höchstens acht
+ * Berichte pro Tag" ist nirgends zugesichert: bei zwanzig Berichten am Tag
+ * deckten 112 geladene Protokolle nur sechs von vierzehn Tagen ab, und die
+ * älteren Tage verschwanden ohne jeden Hinweis aus dem Diagramm.
+ *
+ * Die Auswahlregel bleibt dieselbe wie in pickDailyRepresentatives:
+ * auto-midnight schlägt manual, sonst gewinnt der späteste Bericht des
+ * Tages. Die Momentaufnahmen werden hier bewusst NICHT geladen, damit die
+ * Auswahl unabhängig von der Datenmenge bleibt.
+ */
+async function repraesentantenIds(anzahl) {
+  const zeilen = await DailyLog.aggregate([
+    { $project: { date: 1, type: 1, sentAt: 1 } },
+    { $addFields: { istAuto: { $eq: ['$type', 'auto-midnight'] } } },
+    { $sort: { date: -1, istAuto: -1, sentAt: -1 } },
+    { $group: { _id: '$date', logId: { $first: '$_id' } } },
+    { $sort: { _id: -1 } },
+    { $limit: anzahl }
+  ]);
+  return zeilen.map(z => z.logId);
+}
+
 // ── GET /api/reports/today ───────────────────────────────────────
 // همه‌ی گزارش‌هایی که امروز دستی ارسال شده‌اند (ممکن است چندتا باشند)
 router.get('/today', auth, async (req, res) => {
@@ -55,58 +82,105 @@ router.get('/today', auth, async (req, res) => {
 
 // ── GET /api/reports/analytics?days=14 ───────────────────────────
 router.get('/analytics', auth, async (req, res) => {
-  const days = Math.min(parseInt(req.query.days) || 14, 90);
-  const rawLogs = await DailyLog.find().sort({ date: -1, sentAt: -1 }).limit(days * 8);
-  const repLogs = pickDailyRepresentatives(rawLogs).slice(0, days);
+  const days = require('../lib/validate')
+    .parseRangeInt(req.query.days, { min: 1, max: 90, standard: 14 });
+  if (days === null) {
+    return res.status(400).json({
+      message: 'Ungültiger Wert für days. Erwartet wird eine ganze Zahl von 1 bis 90.'
+    });
+  }
 
-  if (repLogs.length === 0) {
+  const logIds = await repraesentantenIds(days);
+  if (logIds.length === 0) {
     return res.json({ trend: [], topProducts: [], allProducts: [], summary: {} });
   }
 
-  const trend = repLogs
-    .map(l => ({
-      date:          l.date,
-      totalStock:    l.snapshot.reduce((s, p) => s + (p.closingStock || 0), 0),
-      totalConsumed: l.snapshot.reduce((s, p) => s + (p.consumed || 0), 0),
-      productCount:  l.snapshot.length
-    }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  // Trend: je Tag eine Zeile. Die Summen entstehen in der Datenbank.
+  // Vorher wurden dafür alle Momentaufnahmen nach Node geladen und dort
+  // aufaddiert — bei 20 Tagen mit je 100 Produkten über 2000 Positionen,
+  // um am Ende höchstens 100 Ergebniszeilen zu berechnen.
+  const trend = await DailyLog.aggregate([
+    { $match: { _id: { $in: logIds } } },
+    { $project: {
+        _id:           0,
+        date:          1,
+        totalStock:    { $sum: '$snapshot.closingStock' },
+        totalConsumed: { $sum: '$snapshot.consumed' },
+        productCount:  { $size: { $ifNull: ['$snapshot', []] } }
+    } },
+    { $sort: { date: 1 } }
+  ]);
 
-  const productMap = {};
-  repLogs.forEach(log => {
-    log.snapshot.forEach(p => {
-      const key = `${p.productName}__${p.isBio}__${p.unit}`;
-      if (!productMap[key]) {
-        productMap[key] = {
-          name: p.productName, emoji: p.emoji, category: p.category,
-          unit: p.unit, isBio: !!p.isBio, totalConsumed: 0, days: 0
-        };
-      }
-      productMap[key].totalConsumed += p.consumed || 0;
-      productMap[key].days += 1;
-    });
-  });
+  // Produkte: gruppiert nach productId, nicht nach Namen.
+  //
+  // Momentaufnahmen halten den Namen des jeweiligen Tages fest — das ist
+  // richtig und soll so bleiben. Falsch war, daraus den Gruppierungs-
+  // schlüssel zu bilden: eine Umbenennung zerlegte die Historie in zwei
+  // Zeitreihen, und zwei verschiedene Produkte mit gleichem Namen wurden
+  // zusammengeworfen. Die productId steht in jeder Momentaufnahme.
+  //
+  // Für alte Einträge ohne productId bleibt der Name als Notschlüssel.
+  // $last liefert wegen der Sortierung nach Datum den jüngsten Namen.
+  const gruppen = await DailyLog.aggregate([
+    { $match: { _id: { $in: logIds } } },
+    { $sort: { date: 1 } },
+    { $unwind: '$snapshot' },
+    { $addFields: {
+        gruppe: { $ifNull: [
+          '$snapshot.productId',
+          { $concat: [
+            { $ifNull: ['$snapshot.productName', '?'] }, '__',
+            { $toString: { $ifNull: ['$snapshot.isBio', false] } }, '__',
+            { $ifNull: ['$snapshot.unit', '?'] }
+          ] }
+        ] }
+    } },
+    { $group: {
+        _id:           '$gruppe',
+        productId:     { $first: '$snapshot.productId' },
+        name:          { $last: '$snapshot.productName' },
+        emoji:         { $last: '$snapshot.emoji' },
+        category:      { $last: '$snapshot.category' },
+        unit:          { $last: '$snapshot.unit' },
+        isBio:         { $last: '$snapshot.isBio' },
+        totalConsumed: { $sum: { $ifNull: ['$snapshot.consumed', 0] } },
+        days:          { $sum: 1 }
+    } }
+  ]);
 
-  const allProducts = Object.values(productMap).map(p => ({
-    ...p,
-    avgConsumed: parseFloat((p.totalConsumed / p.days).toFixed(1))
+  const allProducts = gruppen.map(g => ({
+    productId:     g.productId ?? null,
+    name:          g.name,
+    emoji:         g.emoji || '📦',
+    category:      g.category || 'Sonstige',
+    unit:          g.unit || 'Kiste',
+    isBio:         !!g.isBio,
+    totalConsumed: g.totalConsumed,
+    days:          g.days,
+    avgConsumed:   parseFloat((g.totalConsumed / g.days).toFixed(1))
   }));
 
-  const topProducts = [...allProducts].sort((a, b) => b.totalConsumed - a.totalConsumed).slice(0, 10);
+  const topProducts = [...allProducts]
+    .sort((a, b) => b.totalConsumed - a.totalConsumed)
+    .slice(0, 10);
 
   const categoryBreakdown = {};
   allProducts.forEach(p => {
     categoryBreakdown[p.category] = (categoryBreakdown[p.category] || 0) + p.totalConsumed;
   });
 
+  const gesamtVerbrauch = trend.reduce((s, d) => s + d.totalConsumed, 0);
+
   res.json({
     trend,
     topProducts,
     allProducts,
     summary: {
-      totalDays:         repLogs.length,
-      totalConsumed:     trend.reduce((s, d) => s + d.totalConsumed, 0),
-      avgDailyConsumed:  parseFloat((trend.reduce((s, d) => s + d.totalConsumed, 0) / trend.length).toFixed(1)),
+      totalDays:        trend.length,
+      totalConsumed:    gesamtVerbrauch,
+      avgDailyConsumed: trend.length
+        ? parseFloat((gesamtVerbrauch / trend.length).toFixed(1))
+        : 0,
       categoryBreakdown
     }
   });
@@ -166,8 +240,11 @@ router.post('/send-now', auth, async (req, res) => {
 // یک ردیف به ازای هر روز (نماینده‌ی همان روز) — برای صفحه‌ی تاریخچه
 router.get('/history', auth, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 30, 365);
-  const rawLogs = await DailyLog.find().sort({ date: -1, sentAt: -1 }).limit(limit * 8);
-  const repLogs = pickDailyRepresentatives(rawLogs).slice(0, limit);
+  // Fenster nach Datum, nicht nach Protokollanzahl — siehe
+  // repraesentantenIds(). Vorher fielen bei vielen Berichten pro Tag
+  // die älteren Tage still aus der Liste.
+  const repIds  = await repraesentantenIds(limit);
+  const repLogs = await DailyLog.find({ _id: { $in: repIds } }).sort({ date: -1 });
 
   const result = repLogs.map(log => ({
     _id:           log._id,

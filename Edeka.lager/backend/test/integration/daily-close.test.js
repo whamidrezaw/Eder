@@ -2,9 +2,13 @@
 //
 // Batch C1 — Tagesabschluss.
 //
-// Diese Datei beschreibt vier Regeln, die der Abschluss einhalten muss.
-// Mehrere Tests sind absichtlich ROT: sie sind der Nachweis, dass die
-// Regeln heute verletzt werden. Jeder rote Test ist mit "── ROT:" markiert.
+// Vier Regeln, die der Abschluss einhalten muss. Mehrere Tests sind
+// absichtlich ROT: sie sind der Nachweis, dass die Regeln heute verletzt
+// werden. Jeder rote Test ist mit "── ROT ──" markiert.
+//
+// Signatur laut services/dailyClose.js:  async function closeDay(dateStr)
+// Das Datum wird übergeben, nicht intern ermittelt — scheduleDailyClose()
+// reicht yesterdayInBerlin() hinein.
 //
 const test     = require('node:test');
 const assert   = require('node:assert/strict');
@@ -13,10 +17,14 @@ const Product  = require('../../models/Product');
 const DailyLog = require('../../models/DailyLog');
 const dailyClose = require('../../services/dailyClose');
 const { closeDay, yesterdayInBerlin } = dailyClose;
+const { start, stop, req } = require('../helpers/http');
+const { makeAdminToken }   = require('../helpers/factories');
 
-test.before(async () => { await db.connect(); });
-test.after (async () => { await db.disconnect(); });
+test.before(async () => { await db.connect(); await start(); });
+test.after (async () => { await stop(); await db.disconnect(); });
 test.beforeEach(async () => { await db.wipe(); });
+
+const GESTERN = () => yesterdayInBerlin();
 
 async function seedProducts(anzahl = 3, bestand = 10) {
   const docs = [];
@@ -37,25 +45,23 @@ function ersetze(model, methode, fabrik) {
   return () => { delete model[methode]; };
 }
 
-// ── Kontrolle: läuft der Abschluss überhaupt? ─────────────────────
-// Dieser Test muss GRÜN sein. Ist er rot, stimmt eine meiner Annahmen
-// über closeDay() nicht — dann bitte seine Ausgabe schicken.
+// ── Kontrollen: müssen GRÜN sein ──────────────────────────────────
 
-test('Kontrolle: closeDay() schreibt genau ein Protokoll für gestern', async () => {
+test('Kontrolle: closeDay(datum) schreibt genau ein Protokoll', async () => {
   await seedProducts(3, 10);
-  await closeDay();
+  await closeDay(GESTERN());
 
   const alle = await DailyLog.find({}).lean();
   assert.equal(alle.length, 1,
     `erwartet 1 Protokoll, gefunden: ${JSON.stringify(alle.map(l => [l.date, l.type]))}`);
-  assert.equal(alle[0].type, 'auto-midnight',
-    `Typ ist "${alle[0].type}" — meine Annahme "auto-midnight" stimmt dann nicht`);
-  assert.equal(alle[0].date, yesterdayInBerlin());
+  assert.equal(alle[0].type, 'auto-midnight');
+  assert.equal(alle[0].date, GESTERN());
+  assert.equal(alle[0].snapshot.length, 3);
 });
 
 test('Kontrolle: nach dem Abschluss ist der Verbrauch für den neuen Tag 0', async () => {
   await seedProducts(3, 10);
-  await closeDay();
+  await closeDay(GESTERN());
 
   for (const p of await Product.find({}).lean()) {
     assert.equal(Math.max(0, p.yesterdayStock - p.currentStock), 0,
@@ -63,18 +69,31 @@ test('Kontrolle: nach dem Abschluss ist der Verbrauch für den neuen Tag 0', asy
   }
 });
 
+// Leitplanke: Der Index darf NICHT zu streng werden. An einem Tag dürfen
+// beliebig viele manuelle Berichte entstehen — das ist der Normalfall.
+test('mehrere manuelle Berichte am selben Tag bleiben erlaubt', async () => {
+  await DailyLog.syncIndexes();
+  const datum = '2026-05-02';
+  await DailyLog.create({ date: datum, sentAt: new Date('2026-05-02T08:00:00Z'), type: 'manual', snapshot: [] });
+  await DailyLog.create({ date: datum, sentAt: new Date('2026-05-02T13:00:00Z'), type: 'manual', snapshot: [] });
+  await DailyLog.create({ date: datum, sentAt: new Date('2026-05-02T19:00:00Z'), type: 'manual', snapshot: [] });
+
+  assert.equal(await DailyLog.countDocuments({ date: datum, type: 'manual' }), 3);
+});
+
 // ── Regel 2: genau ein auto-midnight je Tag ───────────────────────
 
 // ── ROT ──
 test('zweiter Abschluss am selben Tag legt kein zweites Protokoll an', async () => {
   await seedProducts(2, 10);
-  await closeDay();
-  await closeDay();
+  await closeDay(GESTERN());
+  await closeDay(GESTERN());
 
-  const n = await DailyLog.countDocuments({ date: yesterdayInBerlin(), type: 'auto-midnight' });
+  const n = await DailyLog.countDocuments({ date: GESTERN(), type: 'auto-midnight' });
   assert.equal(n, 1,
     `${n} auto-midnight-Protokolle für denselben Tag — der Abschluss ist nicht idempotent. ` +
-    `Ein Neustart um 00:00 oder ein zweites Server-Exemplar erzeugt Dubletten.`);
+    `Ein Neustart um 00:00, ein zweites Server-Exemplar oder ein Klick auf ` +
+    `"Tag manuell schließen" erzeugt Dubletten.`);
 });
 
 // ── ROT ──
@@ -91,32 +110,40 @@ test('die Datenbank selbst verhindert doppelte auto-midnight-Protokolle', async 
   );
 });
 
-// Leitplanke: Der Index darf NICHT zu streng werden. An einem Tag dürfen
-// beliebig viele manuelle Berichte entstehen — das ist der Normalfall.
-test('mehrere manuelle Berichte am selben Tag bleiben erlaubt', async () => {
-  await DailyLog.syncIndexes();
-  const datum = '2026-05-02';
-  await DailyLog.create({ date: datum, sentAt: new Date('2026-05-02T08:00:00Z'), type: 'manual', snapshot: [] });
-  await DailyLog.create({ date: datum, sentAt: new Date('2026-05-02T13:00:00Z'), type: 'manual', snapshot: [] });
-  await DailyLog.create({ date: datum, sentAt: new Date('2026-05-02T19:00:00Z'), type: 'manual', snapshot: [] });
-
-  assert.equal(await DailyLog.countDocuments({ date: datum, type: 'manual' }), 3);
-});
-
 // ── Regel 3: ein erneuter Abschluss löscht den Tagesverbrauch nicht ──
 
 // ── ROT ──
 test('zweiter Abschluss löscht den Verbrauch des laufenden Tages nicht', async () => {
   const [p] = await seedProducts(1, 10);
-  await closeDay();                                                // Basislinie: 10
+  await closeDay(GESTERN());                                     // Basislinie: 10
 
-  await Product.updateOne({ _id: p._id }, { currentStock: 4 });     // Verkauf über den Tag
-  await closeDay();                                                // z. B. Klick auf "Tag abschließen"
+  await Product.updateOne({ _id: p._id }, { currentStock: 4 });   // Verkauf über den Tag
+  await closeDay(GESTERN());                                     // erneuter Abschluss
 
   const nachher = await Product.findById(p._id).lean();
   assert.equal(nachher.yesterdayStock, 10,
     `Basislinie wurde auf ${nachher.yesterdayStock} überschrieben — ` +
     `der bis dahin gemessene Verbrauch von 6 verschwindet aus der Anzeige.`);
+});
+
+// ── ROT ──
+// Derselbe Fehler auf dem Weg, den ein Mensch tatsächlich nimmt:
+// POST /api/reports/close-day ruft closeDay(yesterdayInBerlin()) auf.
+// Ein Klick auf "Tag manuell schließen" um 09:00 Uhr löscht damit den
+// Verbrauch des ganzen Vormittags.
+test('Klick auf "Tag manuell schließen" löscht den Vormittagsverbrauch nicht', async () => {
+  const token = await makeAdminToken();
+  const [p] = await seedProducts(1, 10);
+  await closeDay(GESTERN());
+
+  await Product.updateOne({ _id: p._id }, { currentStock: 4 });
+
+  const antwort = await req('/api/reports/close-day', { method: 'POST', token, body: {} });
+  assert.ok(antwort.status < 500, `Route antwortete mit ${antwort.status}: ${antwort.text}`);
+
+  const nachher = await Product.findById(p._id).lean();
+  assert.equal(nachher.yesterdayStock, 10,
+    `Basislinie über die Route auf ${nachher.yesterdayStock} überschrieben`);
 });
 
 // ── Regel 1: Momentaufnahme und Basislinie gehören zusammen ───────
@@ -125,9 +152,9 @@ test('zweiter Abschluss löscht den Verbrauch des laufenden Tages nicht', async 
 test('gleichzeitige Bestandsänderung während des Abschlusses erzeugt keinen Phantomverbrauch', async () => {
   const [p] = await seedProducts(1, 10);
 
-  // Zwischen dem Lesen der Produkte und dem Schreiben von yesterdayStock
-  // liegt eine Lücke. Hier wird genau dort eine Änderung eingeschoben —
-  // so, wie sie in einer Nacht mit spätem Wareneingang passieren kann.
+  // closeDay liest erst alle Produkte, legt dann das Protokoll an und
+  // schreibt erst danach yesterdayStock — mit den ZUERST gelesenen Werten.
+  // Hier wird genau in diese Lücke eine Änderung eingeschoben.
   let hookLief = false;
   const aufraeumen = ersetze(DailyLog, 'create', (original) => async (...args) => {
     const ergebnis = await original(...args);
@@ -136,7 +163,7 @@ test('gleichzeitige Bestandsänderung während des Abschlusses erzeugt keinen Ph
     return ergebnis;
   });
 
-  try { await closeDay(); } finally { aufraeumen(); }
+  try { await closeDay(GESTERN()); } finally { aufraeumen(); }
 
   assert.ok(hookLief,
     'closeDay() benutzt DailyLog.create nicht — dieser Test greift nicht. Bitte Ausgabe schicken.');
@@ -159,7 +186,7 @@ test('closeDay() schreibt die Basislinie gesammelt, nicht einmal pro Produkt', a
   const auf2 = ersetze(Product, 'findOneAndUpdate', zaehlen);
   const auf3 = ersetze(Product, 'updateOne',        zaehlen);
 
-  try { await closeDay(); } finally { auf1(); auf2(); auf3(); }
+  try { await closeDay(GESTERN()); } finally { auf1(); auf2(); auf3(); }
 
   assert.ok(einzelschreibungen <= 2,
     `${einzelschreibungen} Einzelschreibvorgänge bei 40 Produkten. ` +
@@ -179,7 +206,7 @@ test('ein verpasster Tagesabschluss wird beim Start nachgeholt', async () => {
 
   await dailyClose.catchUpIfNeeded();
 
-  assert.equal(await DailyLog.countDocuments({ date: yesterdayInBerlin(), type: 'auto-midnight' }), 1,
+  assert.equal(await DailyLog.countDocuments({ date: GESTERN(), type: 'auto-midnight' }), 1,
     'der fehlende Abschluss wurde nicht nachgeholt');
 });
 
@@ -188,7 +215,7 @@ test('ein bereits erledigter Abschluss wird beim Start nicht wiederholt', async 
   assert.equal(typeof dailyClose.catchUpIfNeeded, 'function', 'catchUpIfNeeded() fehlt noch');
 
   const [p] = await seedProducts(1, 10);
-  await closeDay();
+  await closeDay(GESTERN());
   await Product.updateOne({ _id: p._id }, { currentStock: 4 });
 
   await dailyClose.catchUpIfNeeded();   // Neustart mitten am Tag

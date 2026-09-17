@@ -107,7 +107,11 @@ async function closeDay(dateStr, options = {}) {
   // nie gab.
   const basislinie = await Product.updateMany(
     { isActive: true },
-    [{ $set: { yesterdayStock: '$currentStock' } }]
+    [{ $set: { yesterdayStock: '$currentStock' } }],
+    // Mongoose 9 verlangt diese Option, sobald das Update eine Pipeline
+    // (also ein Array) ist — sie unterscheidet einen bewussten
+    // Pipeline-Update von einem versehentlich übergebenen Array.
+    { updatePipeline: true }
   );
 
   return {

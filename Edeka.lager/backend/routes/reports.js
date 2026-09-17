@@ -306,9 +306,22 @@ router.post('/close-day', auth, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Nur Admins dürfen den Tag manuell schließen' });
   }
-  const dateStr = req.body?.date || yesterdayInBerlin();
-  const result = await closeDay(dateStr);
-  res.json({ message: `✅ Tag ${dateStr} manuell geschlossen`, ...result });
+  const rohDatum = req.body?.date;
+  if (rohDatum !== undefined && rohDatum !== '' &&
+      !require('../lib/validate').parseIsoDate(rohDatum)) {
+    return res.status(400).json({ message: 'Ungültiges Datum. Erwartet wird JJJJ-MM-TT.' });
+  }
+  const dateStr = rohDatum || yesterdayInBerlin();
+
+  // force muss ausdrücklich gesetzt werden. Ohne die Option ist ein zweiter
+  // Abschluss ein No-op — genau das schützt den Verbrauch des laufenden Tages.
+  const force  = req.body?.force === true;
+  const result = await closeDay(dateStr, { force });
+
+  const message = result.skipped
+    ? `ℹ️ Tag ${dateStr} war bereits geschlossen — nichts geändert. Mit "force": true erneut schließen.`
+    : `✅ Tag ${dateStr} ${force ? 'erneut ' : 'manuell '}geschlossen`;
+  res.json({ message, ...result });
 });
 
 // ── GET /api/reports/:id ────────────────────────────────────────

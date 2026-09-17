@@ -1,7 +1,7 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const app      = require('./app');
-const { scheduleDailyClose } = require('./services/dailyClose');
+const { scheduleDailyClose, catchUpIfNeeded } = require('./services/dailyClose');
 
 // ── Fail-fast: ohne tragfähigen JWT_SECRET nicht starten ──────────
 // Ohne Schlüssel startete der Server bisher normal und brach erst beim
@@ -23,6 +23,11 @@ mongoose.connect(process.env.MONGODB_URI, {
 })
   .then(() => {
     console.log('✅ MongoDB verbunden');
+    // War der Server um Mitternacht aus, wurde der Tag nie geschlossen.
+    // Das wird hier einmalig nachgeholt — absichtlich ohne await: schlägt es
+    // fehl, soll der Server trotzdem starten.
+    catchUpIfNeeded().catch(err =>
+      console.error('❌ Nachholen des Tagesabschlusses fehlgeschlagen:', err.message));
     scheduleDailyClose();   // بستن خودکار روز هر شب ۰۰:۰۰ (Europe/Berlin)
     const PORT = parseInt(process.env.PORT) || 3000;
     app.listen(PORT, () => {

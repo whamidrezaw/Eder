@@ -225,3 +225,46 @@ test('ein bereits erledigter Abschluss wird beim Start nicht wiederholt', async 
     'ein Neustart am Vormittag hat die Basislinie überschrieben');
   assert.equal(await DailyLog.countDocuments({ type: 'auto-midnight' }), 1);
 });
+
+// ── Neu in C1: die force-Option ───────────────────────────────────
+// Diese Tests prüfen NEUES Verhalten. Die acht roten Tests oben bleiben
+// unverändert — sie sind der Nachweis und dürfen nicht angepasst werden.
+
+test('force: true schließt einen bereits geschlossenen Tag erneut', async () => {
+  const [p] = await seedProducts(1, 10);
+  await closeDay(GESTERN());
+  await Product.updateOne({ _id: p._id }, { currentStock: 4 });
+
+  await closeDay(GESTERN(), { force: true });
+
+  const nachher = await Product.findById(p._id).lean();
+  assert.equal(nachher.yesterdayStock, 4, 'force hat die Basislinie nicht neu gesetzt');
+  assert.equal(await DailyLog.countDocuments({ date: GESTERN(), type: 'auto-midnight' }), 1,
+    'force darf das Protokoll überschreiben, aber kein zweites anlegen');
+});
+
+test('die Route schließt nur mit ausdrücklichem force erneut', async () => {
+  const token = await makeAdminToken();
+  const [p] = await seedProducts(1, 10);
+  await closeDay(GESTERN());
+  await Product.updateOne({ _id: p._id }, { currentStock: 4 });
+
+  const ohne = await req('/api/reports/close-day', { method: 'POST', token, body: {} });
+  assert.equal(ohne.status, 200, ohne.text);
+  assert.equal(ohne.body.skipped, true, 'ohne force muss die Route melden, dass nichts geändert wurde');
+  assert.equal((await Product.findById(p._id).lean()).yesterdayStock, 10);
+
+  const mit = await req('/api/reports/close-day', { method: 'POST', token, body: { force: true } });
+  assert.equal(mit.status, 200, mit.text);
+  assert.notEqual(mit.body.skipped, true);
+  assert.equal((await Product.findById(p._id).lean()).yesterdayStock, 4);
+});
+
+test('close-day weist ein unbrauchbares Datum mit 400 ab', async () => {
+  const token = await makeAdminToken();
+  await seedProducts(1, 10);
+
+  const r = await req('/api/reports/close-day', { method: 'POST', token, body: { date: 'kein-datum' } });
+  assert.equal(r.status, 400, `stattdessen ${r.status}: ${r.text}`);
+  assert.equal(await DailyLog.countDocuments({}), 0);
+});

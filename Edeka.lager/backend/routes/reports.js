@@ -188,6 +188,18 @@ router.get('/history', auth, async (req, res) => {
 // ── GET /api/reports/export?type=excel|pdf&date=YYYY-MM-DD&logId=... ─────
 // بدون date/logId → خروجی از وضعیت زنده‌ی فعلی انبار
 router.get('/export', auth, async (req, res) => {
+  {
+    // Ein fehlerhaft formatiertes Datum ist ein kaputter Request (400),
+    // kein leeres Ergebnis (404). Werden beide Fälle vermischt, bleibt ein
+    // Fehler im Frontend für immer unsichtbar. reset-logs weist denselben
+    // Wert ebenfalls mit 400 ab — zwei Routen, ein Parameter, eine Regel.
+    // Fehlt das Datum ganz, bleibt das Verhalten unverändert.
+    const rohDatum = req.query?.date;
+    if (rohDatum !== undefined && rohDatum !== '' &&
+        !require('../lib/validate').parseIsoDate(rohDatum)) {
+      return res.status(400).json({ message: 'Ungültiges Datum. Erwartet wird JJJJ-MM-TT.' });
+    }
+  }
   const { type, date, logId } = req.query;
   if (type !== 'excel' && type !== 'pdf') {
     return res.status(400).json({ message: 'type=excel oder type=pdf erforderlich' });

@@ -59,7 +59,12 @@ test('ein falsches aktuelles Passwort beendet die Sitzung nicht', async () => {
   const u = ladeShared({
     token: 'T',
     lokal: { theme: 'dark' },
-    fetchStub: async () => antwort(401, { message: 'Aktuelles Passwort falsch' })
+    // Genau diese Antwort schickt der Server seit C3.1 — festgehalten in
+    // test/integration/change-password.test.js.
+    fetchStub: async () => antwort(401, {
+      message: 'Aktuelles Passwort falsch',
+      code:    'BAD_CREDENTIALS'
+    })
   });
 
   await assert.rejects(() => u.sandbox.api(

@@ -67,3 +67,35 @@ test('die beiden 401-Antworten sind voneinander unterscheidbar', async () => {
     'erkennen, ob die Sitzung abgelaufen ist oder nur das Passwort falsch ' +
     'war — die Korrektur braucht dann auch eine Server-Seite.');
 });
+
+// ── Neu in C3: die Kennzeichnung ──────────────────────────────────
+// Diese beiden Tests halten den Vertrag fest, auf dem api() im Browser
+// aufbaut. Ohne sie wäre die Attrappe im Frontend-Test nur eine Behauptung.
+
+test('ein 401 wegen Zugangsdaten ist als solcher gekennzeichnet', async () => {
+  await makeUser({ username: 'anna' });
+  const { token } = await login('anna');
+
+  const passwortFehler = await req('/api/auth/change-password', {
+    method: 'PUT', token,
+    body: { currentPassword: 'vertippt', newPassword: NEU }
+  });
+  assert.equal(passwortFehler.status, 401);
+  assert.equal(passwortFehler.body.code, 'BAD_CREDENTIALS',
+    'ohne diese Kennzeichnung kann der Browser den Fall nicht von einer ' +
+    'abgelaufenen Sitzung unterscheiden');
+
+  const loginFehler = await req('/api/auth/login', {
+    method: 'POST', body: { username: 'anna', password: 'falsch' }
+  });
+  assert.equal(loginFehler.status, 401);
+  assert.equal(loginFehler.body.code, 'BAD_CREDENTIALS');
+});
+
+test('ein 401 aus der Token-Prüfung trägt diese Kennzeichnung NICHT', async () => {
+  const r = await req('/api/products', { token: 'voelligKaputt' });
+  assert.equal(r.status, 401);
+  assert.notEqual(r.body.code, 'BAD_CREDENTIALS',
+    'sonst würde eine abgelaufene Sitzung nicht mehr zum Abmelden führen — ' +
+    'genau die Leitplanke, die das verhindern soll');
+});

@@ -80,11 +80,23 @@ router.post('/login', loginLimiter, async (req, res) => {
 
   const user = await User.findOne({ username });
   if (!user || !user.isActive)
-    return res.status(401).json({ message: 'Benutzername oder Passwort falsch' });
+    return res.status(401).json({
+      message: 'Benutzername oder Passwort falsch',
+      // Kennzeichnet einen Fehler bei den ZUGANGSDATEN, nicht bei der
+      // Sitzung. Der Browser meldet sich bei einem so gekennzeichneten
+      // 401 nicht ab — ein Tippfehler soll niemanden aus dem System werfen.
+      code: 'BAD_CREDENTIALS'
+    });
 
   const valid = await bcrypt.compare(password, user.password);
   if (!valid)
-    return res.status(401).json({ message: 'Benutzername oder Passwort falsch' });
+    return res.status(401).json({
+      message: 'Benutzername oder Passwort falsch',
+      // Kennzeichnet einen Fehler bei den ZUGANGSDATEN, nicht bei der
+      // Sitzung. Der Browser meldet sich bei einem so gekennzeichneten
+      // 401 nicht ab — ein Tippfehler soll niemanden aus dem System werfen.
+      code: 'BAD_CREDENTIALS'
+    });
 
   // Login-Log speichern (über die Model-Methode, wie im User-Model vorgesehen)
   user.addLoginEntry({ ip, userAgent, action: 'login' });
@@ -128,7 +140,10 @@ router.put('/change-password', auth, async (req, res) => {
 
   const valid = await bcrypt.compare(currentPassword, user.password);
   if (!valid)
-    return res.status(401).json({ message: 'Aktuelles Passwort falsch' });
+    return res.status(401).json({
+      message: 'Aktuelles Passwort falsch',
+      code: 'BAD_CREDENTIALS'
+    });
 
   const hashed = await bcrypt.hash(newPassword, 12);
   await User.findByIdAndUpdate(user._id, { password: hashed });

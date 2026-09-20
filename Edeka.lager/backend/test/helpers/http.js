@@ -16,7 +16,7 @@ async function start() {
 
 async function stop() {
   if (!server) return;
-  await new Promise(res => server.close(res));
+  await new Promise(res => { server.close(res); });
   server = null;
   base   = '';
 }

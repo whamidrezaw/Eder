@@ -1,10 +1,11 @@
-require('dotenv').config();
+// dotenv wird bewusst NICHT hier geladen: server.js tut das, bevor es
+// diese Datei verlangt, und die Tests setzen ihre Werte in
+// test/helpers/env.js. Ein zweiter Aufruf änderte nichts und erzeugte
+// nur eine zweite Meldung beim Start.
 const express  = require('express');
-const mongoose = require('mongoose');
 const cors     = require('cors');
 const helmet   = require('helmet');
 const path     = require('path');
-const { scheduleDailyClose } = require('./services/dailyClose');
 
 const app = express();
 
@@ -95,7 +96,10 @@ app.get('/{*path}', (req, res) => {
 // به‌صورت خودکار reject شدن یک async handler را به اینجا می‌فرستد) —
 // یک نقطه‌ی واحد برای تعیین status code درست و مخفی‌کردن جزئیات داخلی
 // در production، به‌جای تکرار همان منطق در تک‌تک روت‌ها.
-// eslint-disable-next-line no-unused-vars
+// Der Parameter next wird hier nicht benutzt, MUSS aber stehen bleiben:
+// Express erkennt einen Fehler-Handler an der Anzahl seiner Parameter.
+// Ohne den vierten Parameter ist das hier eine ganz normale Middleware
+// und Fehler laufen stumm daran vorbei.
 app.use((err, req, res, next) => {
   let status = err.status || err.statusCode || 500;
   let message = err.message || 'Interner Serverfehler';

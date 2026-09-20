@@ -13,7 +13,8 @@
     "test:unit": "node --test \"test/unit/**/*.test.js\"",
     "test:integration": "node --test \"test/integration/**/*.test.js\"",
     "test:watch": "node --test --watch \"test/**/*.test.js\"",
-    "test:coverage": "node --test --experimental-test-coverage \"test/**/*.test.js\""
+    "test:coverage": "node --test --experimental-test-coverage \"test/**/*.test.js\"",
+    "lint": "cd .. && ./backend/node_modules/.bin/eslint ."
   },
   "engines": {
     "node": ">=18"

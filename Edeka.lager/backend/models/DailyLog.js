@@ -41,4 +41,16 @@ const dailyLogSchema = new mongoose.Schema({
 // کوئری سریع روی روز + ترتیب زمانی درون همان روز
 dailyLogSchema.index({ date: -1, sentAt: -1 });
 
+// Genau EIN automatischer Tagesabschluss je Datum — auf Datenbankebene,
+// nicht nur im Code. Eine Prüfung in JavaScript schützt nicht gegen zwei
+// Prozesse, die gleichzeitig um 00:00 schreiben.
+//
+// Der Index ist absichtlich PARTIELL: er greift nur für auto-midnight.
+// Manuelle Berichte dürfen beliebig oft am selben Tag entstehen — das ist
+// der Normalfall und darf nicht eingeschränkt werden.
+dailyLogSchema.index(
+  { date: 1, type: 1 },
+  { unique: true, partialFilterExpression: { type: 'auto-midnight' } }
+);
+
 module.exports = mongoose.model('DailyLog', dailyLogSchema);

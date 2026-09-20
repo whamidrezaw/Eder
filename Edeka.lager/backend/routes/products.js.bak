@@ -21,14 +21,6 @@ router.get('/', auth, async (req, res) => {
 router.post('/', auth, async (req, res, next) => {
   try {
     const { emoji, name, category, currentStock, unit, isBio } = req.body;
-    {
-      // Typprüfung VOR Number(): Number([]) ist 0, Number(["5"]) ist 5.
-      // Ohne diese Zeile setzt ein leeres Array den Bestand still auf null.
-      const geprueft = require('../lib/validate').parseStock(currentStock ?? 0);
-      if (geprueft === null) {
-        return res.status(400).json({ message: 'Ungültiger Bestandswert. Erwartet wird eine Zahl ab 0.' });
-      }
-    }
 
     if (!name || !name.trim())
       return res.status(400).json({ message: 'Produktname erforderlich' });
@@ -104,14 +96,6 @@ router.put('/:id', auth, async (req, res, next) => {
 // PATCH /api/products/:id/stock — به‌روزرسانی موجودی فعلی (همان عملکرد گزارش‌گیری روزمره)
 router.patch('/:id/stock', auth, async (req, res) => {
   const { currentStock } = req.body;
-    {
-      // Typprüfung VOR Number(): Number([]) ist 0, Number(["5"]) ist 5.
-      // Ohne diese Zeile setzt ein leeres Array den Bestand still auf null.
-      const geprueft = require('../lib/validate').parseStock(currentStock ?? 0);
-      if (geprueft === null) {
-        return res.status(400).json({ message: 'Ungültiger Bestandswert. Erwartet wird eine Zahl ab 0.' });
-      }
-    }
 
   // FIX: "currentStock < 0" به‌تنهایی مقادیر نامعتبر مثل NaN یا رشته را رد
   // نمی‌کرد (NaN < 0 هم false است)، پس اینجا صراحتاً یک عدد متناهی و غیرمنفی

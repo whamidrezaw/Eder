@@ -21,7 +21,11 @@ const currentUser = (() => {
 
 // 3. security_helper
 function escapeHtml(str) {
-  if (!str) return '';
+  // Vorher: if (!str) return '' — damit wurden auch die Zahl 0 und false
+  // zu einem leeren String. In einer Lagerverwaltung ist 0 ein häufiger
+  // und wichtiger Wert: ein Bestand von 0 verschwand aus jeder Anzeige,
+  // die durch diese Funktion lief.
+  if (str === null || str === undefined) return '';
   return String(str)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -42,12 +46,24 @@ async function api(endpoint, method = 'GET', body = null) {
     body: body ? JSON.stringify(body) : null
   });
 
-  if (res.status === 401) {
+  const data = await res.json().catch(() => ({}));
+
+  // Nur ein 401 aus der Token-Prüfung beendet die Sitzung.
+  //
+  // Vorher führte JEDER 401 zum Abmelden. /api/auth/change-password läuft
+  // aber selbst durch die Token-Prüfung und antwortet zusätzlich mit 401,
+  // wenn das eingegebene aktuelle Passwort falsch ist — ein Tippfehler in
+  // diesem Feld warf den Benutzer damit aus dem System.
+  //
+  // Unterschieden wird über das Feld code: 'BAD_CREDENTIALS' kennzeichnet
+  // einen Fehler bei den Zugangsdaten. Ein 401 OHNE dieses Kennzeichen gilt
+  // weiterhin als abgelaufene Sitzung — vergisst jemand später eine
+  // Kennzeichnung, ist das Ergebnis das alte Verhalten und nicht eine
+  // Sitzung, die nie endet.
+  if (res.status === 401 && data.code !== 'BAD_CREDENTIALS') {
     logout();
     throw new Error('Session abgelaufen');
   }
-
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error(data.message || `API Fehler (${res.status})`);
     err.status = res.status;
@@ -94,7 +110,24 @@ window.showToast = showToast;
 
 function logout() {
   sessionStorage.clear();
+
+  // localStorage.clear() hat auch das gespeicherte Farbschema gelöscht:
+  // nach jedem Abmelden stand das Thema wieder auf dem Standard, obwohl es
+  // zum Gerät gehört und nicht zur Sitzung.
+  //
+  // Alles Übrige wird weiterhin entfernt — das war die Absicht hinter dem
+  // ursprünglichen clear() und bleibt richtig, damit nichts vom vorigen
+  // Benutzer auf einem gemeinsam genutzten Gerät zurückbleibt.
+  const anzeigeEinstellungen = ['theme'];
+  const gemerkt = {};
+  anzeigeEinstellungen.forEach(schluessel => {
+    const wert = localStorage.getItem(schluessel);
+    if (wert !== null) gemerkt[schluessel] = wert;
+  });
   localStorage.clear();
+  Object.keys(gemerkt).forEach(schluessel => {
+    localStorage.setItem(schluessel, gemerkt[schluessel]);
+  });
   window.location.href = 'index.html';
 }
 window.logout = logout;

@@ -2,24 +2,27 @@ const express   = require('express');
 const router    = express.Router();
 const jwt       = require('jsonwebtoken');
 const bcrypt    = require('bcryptjs');
-const rateLimit = require('express-rate-limit');
 const User      = require('../models/User');
 const auth      = require('../middleware/auth');
 
-// ── Rate Limiting برای Login ────────────────────────────────────────
-// قبلاً هیچ محدودیتی روی تلاش‌های ورود نبود (brute-force ممکن بود)، درحالی
-// که فرانت‌اند (index.html) از قبل منتظر یک پاسخ 429 بود و پیام مخصوص آن
-// را نمایش می‌داد — یعنی این محدودیت وجود نداشت ولی از آن انتظار می‌رفت.
-// کلید محدودیت IP کلاینت است (req.ip؛ به تنظیم trust proxy در server.js
-// احترام می‌گذارد)، نه یوزرنیم، تا هم brute-force روی یک حساب و هم
-// password-spraying روی چند حساب از یک IP را محدود کند.
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Zu viele Login-Versuche. Bitte versuchen Sie es in einigen Minuten erneut.' }
-});
+// ── Mengenbegrenzung für den Login ──────────────────────────────
+// Vorher: EIN Limiter je IP. Die Begründung war richtig gedacht — er
+// sollte zugleich das Durchprobieren eines Kontos und das Streuen über
+// viele Konten von einer Adresse bremsen. Nicht bedacht war, dass in
+// einer Filiale alle Geräte hinter EINER öffentlichen Adresse sitzen:
+// zehn Tippfehler eines Kollegen sperrten die ganze Filiale aus.
+//
+// Jetzt zwei Stufen (lib/limits.js), die beide Ziele von damals halten:
+//   loginJeName   10 Fehlversuche je Benutzername  — schützt das Konto
+//   loginJeIp     hohe Decke je IP, Standard 100   — bremst das Streuen
+//
+// Die Reihenfolge ist wesentlich: je Name ZUERST. Andersherum zählt
+// jeder bereits abgewiesene Versuch weiter auf die IP-Decke, und einer,
+// der dreißigmal klickt, sperrt wieder die ganze Filiale aus. Das ist
+// geprüft: test/integration/login-limit-order.test.js.
+//
+// index.html wartet weiterhin auf 429 mit derselben Meldung.
+const { loginJeName, loginJeIp } = require('../lib/limits');
 
 // یک IP که ظاهر IPv4/IPv6 معتبر ندارد ذخیره نمی‌شود — هدف جلوگیری از این
 // است که یک مقدار جعلی/دستکاری‌شده بعداً در پنل «Login-Verlauf» رندر شود
@@ -69,7 +72,7 @@ router.post('/register', auth, async (req, res) => {
 });
 
 // POST /api/auth/login
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', loginJeName, loginJeIp, async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password)

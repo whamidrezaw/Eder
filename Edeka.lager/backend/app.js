@@ -42,18 +42,34 @@ app.use(helmet({
 }));
 
 // ── CORS ─────────────────────────────────────────────────────────
-// این اپ توکن را در هدر Authorization می‌فرستد (نه کوکی)، پس محدودیت
-// سخت‌گیرانه‌ی Origin اینجا ارزش امنیتی واقعی اضافه نمی‌کند — یک سایت
-// مخالف به توکن شما در sessionStorage دسترسی ندارد، چه CORS باز باشد چه بسته.
-// به همین خاطر هر Origin (آی‌پی سرور، دامنه، با/بدون پورت) را قبول می‌کنیم
-// تا محدود به یک آدرس از پیش‌تعیین‌شده در .env نباشید.
-// توجه: credentials:true عمداً *حذف* شده — این اپ هیچ کوکی‌ای ست نمی‌کند،
-// پس آن گزینه فقط می‌توانست در آینده (اگر روزی کوکی اضافه شود) به‌صورت
-// ناخواسته یک آسیب‌پذیری CSRF/کراس‌اورجین باز کند. اگر واقعاً یک روز
-// احراز هویت مبتنی بر کوکی اضافه کردید، اینجا را به یک allow-list واقعی
-// از Originهای مورد اعتماد تغییر دهید.
+// CORS entscheidet, welche ANDEREN Websites aus dem Browser heraus die
+// Antworten dieser API lesen dürfen. Es schützt NICHT den Server: eine
+// Anfrage aus einem Skript oder mit curl kümmert sich nicht darum.
+//
+// Die frühere Begründung für "alle Origins" bleibt richtig: angemeldet
+// wird über einen Authorization-Header, nicht über ein Cookie, und das
+// Token in sessionStorage ist für fremde Seiten unerreichbar. Das
+// Schließen hier ist Verteidigung in der Tiefe, kein offenes Leck.
+//
+// Das eigene Frontend kommt von derselben Adresse und braucht gar keine
+// Freigabe — der Browser prüft CORS nur zwischen VERSCHIEDENEN Origins.
+// Es läuft also über IP, Domain und jeden Port weiter, ohne dass etwas
+// in .env stehen muss. Das war das Ziel der alten Regel; es bleibt.
+//
+// Wer doch eine fremde Origin braucht, etwa einen eigenen Entwicklungs-
+// server, trägt sie kommagetrennt in CORS_ORIGINS ein.
+//
+// credentials:true bleibt bewusst weg: es gibt keine Cookies, und die
+// Option würde nur ein künftiges Risiko öffnen.
+const erlaubteOrigins = String(process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: (origin, callback) => callback(null, true)
+  // Ohne Origin-Header (gleiche Adresse, curl, Server-zu-Server) gibt es
+  // nichts zu entscheiden. Ist eine gesetzt, zählt allein die Liste.
+  origin: (origin, callback) => callback(null, !origin || erlaubteOrigins.includes(origin))
 }));
 
 // ── Body Parsing ─────────────────────────────────────────────────

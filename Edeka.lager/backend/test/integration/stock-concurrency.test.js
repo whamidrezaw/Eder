@@ -68,7 +68,8 @@ test('Kontrolle: updatedAt ändert sich bei jeder Bestandsänderung', async () =
 
   await kurzWarten();
   const r = await req(`/api/products/${p._id}/stock`, {
-    method: 'PATCH', token: anna, body: { currentStock: 7 }
+    method: 'PATCH', token: anna,
+    body: { currentStock: 7, updatedAt: vorher.updatedAt.toISOString() }
   });
   assert.equal(r.status, 200, r.text);
 
@@ -195,4 +196,47 @@ test('mehrere Änderungen nacheinander funktionieren weiterhin', async () => {
   }
 
   assert.equal((await standVon(p._id)).currentStock, 9);
+});
+
+// ── Neu in E1: die Version ist Pflicht ────────────────────────────
+
+test('ohne Version wird die Änderung sichtbar abgewiesen', async () => {
+  const { anna } = await zweiLageristen();
+  const p = await makeProduct({ currentStock: 10 });
+
+  const r = await req(`/api/products/${p._id}/stock`, {
+    method: 'PATCH', token: anna, body: { currentStock: 4 }
+  });
+
+  assert.equal(r.status, 400, r.text);
+  assert.equal(r.body.code, 'VERSION_REQUIRED');
+  assert.equal((await standVon(p._id)).currentStock, 10, 'trotz 400 wurde geschrieben');
+});
+
+test('eine unbrauchbare Version wird abgewiesen', async () => {
+  const { anna } = await zweiLageristen();
+  const p = await makeProduct({ currentStock: 10 });
+
+  for (const muell of ['gestern', '', 'null', '2026-13-45T99:99:99Z']) {
+    const r = await req(`/api/products/${p._id}/stock`, {
+      method: 'PATCH', token: anna, body: { currentStock: 4, updatedAt: muell }
+    });
+    assert.equal(r.status, 400, `updatedAt="${muell}" ergab ${r.status}: ${r.text}`);
+  }
+  assert.equal((await standVon(p._id)).currentStock, 10);
+});
+
+test('ein unbekanntes Produkt ergibt weiterhin 404, nicht 409', async () => {
+  // Die neue Route unterscheidet "gibt es nicht" von "jemand war
+  // schneller". Ohne diesen Test könnte ein 404 unbemerkt zu einem 409
+  // werden — und der Aufrufer würde nach einer Version fragen, die es
+  // nie geben wird.
+  const { anna } = await zweiLageristen();
+  const erfunden = new (require('mongoose').Types.ObjectId)();
+
+  const r = await req(`/api/products/${erfunden}/stock`, {
+    method: 'PATCH', token: anna,
+    body: { currentStock: 4, updatedAt: new Date().toISOString() }
+  });
+  assert.equal(r.status, 404, r.text);
 });

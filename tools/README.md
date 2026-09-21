@@ -14,6 +14,8 @@ Reihenfolge ihrer Entstehung.
 | `apply-c3-tests.sh`, `apply-c3-fixes-v2.sh` | Frontend-Befunde |
 | `apply-test-isolation.sh` | Eine Testdatenbank je Datei |
 | `apply-eslint.sh` | Statische Prüfung |
+| `apply-e4.sh` | Aufräumen, Lint in der CI |
+| `apply-e1-tests.sh`, `apply-e1-fixes.sh` | Optimistische Sperre für Bestandsänderungen |
 
 Sie sind hier als Dokumentation des Wegs abgelegt, nicht zur erneuten
 Ausführung: jedes hat seine Änderungen bereits angewendet und prüft das

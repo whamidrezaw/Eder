@@ -13,10 +13,11 @@
     "test:unit": "node --test \"test/unit/**/*.test.js\"",
     "test:integration": "node --test \"test/integration/**/*.test.js\"",
     "test:watch": "node --test --watch \"test/**/*.test.js\"",
-    "test:coverage": "node --test --experimental-test-coverage \"test/**/*.test.js\""
+    "test:coverage": "node --test --experimental-test-coverage \"test/**/*.test.js\"",
+    "lint": "cd .. && ./backend/node_modules/.bin/eslint ."
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20.19.0"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -32,6 +33,7 @@
     "pdfkit": "^0.18.0"
   },
   "devDependencies": {
+    "eslint": "^10.11.0",
     "nodemon": "^3.1.14"
   }
 }

@@ -189,7 +189,7 @@ router.get('/analytics', auth, async (req, res) => {
 // ── POST /api/reports/send-now ───────────────────────────────────
 // گزارش لحظه‌ای: snapshot می‌گیرد، به تلگرام می‌فرستد، و به‌عنوان رکورد دستی ذخیره می‌کند.
 // yesterdayStock را تغییر نمی‌دهد — فقط بستن خودکار نیمه‌شب این کار را می‌کند.
-router.post('/send-now', auth, async (req, res) => {
+router.post('/send-now', auth, require('../lib/limits').sendNowJeBenutzer, async (req, res) => {
   const products = await Product.find({ isActive: true }).sort({ category: 1, name: 1 });
   if (products.length === 0) {
     return res.status(400).json({ message: 'Keine aktiven Produkte vorhanden' });
@@ -283,7 +283,7 @@ router.get('/history', auth, async (req, res) => {
 
 // ── GET /api/reports/export?type=excel|pdf&date=YYYY-MM-DD&logId=... ─────
 // بدون date/logId → خروجی از وضعیت زنده‌ی فعلی انبار
-router.get('/export', auth, async (req, res) => {
+router.get('/export', auth, require('../lib/limits').exportJeBenutzer, async (req, res) => {
   {
     // Ein fehlerhaft formatiertes Datum ist ein kaputter Request (400),
     // kein leeres Ergebnis (404). Werden beide Fälle vermischt, bleibt ein

@@ -398,11 +398,37 @@ async function setStock(id, value) {
   if (!p || p.currentStock === num) return;
 
   try {
-    const updated = await api(`/api/products/${id}/stock`, 'PATCH', { currentStock: num });
+    // p.updatedAt ist die Version, die DIESER Nutzer gesehen hat — nicht
+    // ein frisch geholter Stand. Genau darauf beruht die Prüfung: hätten
+    // wir hier neu geladen, wäre das Fenster für den Konflikt nur ein
+    // paar Millisekunden groß und die Sperre wirkungslos.
+    const updated = await api(`/api/products/${id}/stock`, 'PATCH', {
+      currentStock: num,
+      updatedAt:    p.updatedAt
+    });
     Object.assign(p, updated);
     renderKpis();
     renderTable();
   } catch (e) {
+    // 409 heißt: jemand anders war schneller. Der lokale Stand ist damit
+    // veraltet — erst richtigstellen, dann fragen. Ohne die Rückfrage
+    // wäre die eigene Zählung einfach weg, und genau das war der Fehler.
+    if (e.status === 409 && e.data && e.data.code === 'STOCK_CONFLICT') {
+      p.currentStock = e.data.currentStock;
+      p.updatedAt    = e.data.updatedAt;
+      renderKpis();
+      renderTable();
+
+      const trotzdem = confirm(
+        'Jemand anderes hat den Bestand inzwischen auf ' + e.data.currentStock + ' geändert.' +
+        '\n\nDeine Zählung war ' + num + '.' +
+        '\n\nTrotzdem ' + num + ' eintragen?'
+      );
+      // Der zweite Versuch trägt die frische Version. Stimmt der Wert
+      // inzwischen ohnehin überein, bricht setStock von selbst ab.
+      if (trotzdem) await setStock(id, num);
+      return;
+    }
     showToast('⚠️ ' + e.message, 'err');
     renderTable();
   }

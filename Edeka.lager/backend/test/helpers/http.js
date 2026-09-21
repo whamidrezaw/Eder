@@ -16,7 +16,7 @@ async function start() {
 
 async function stop() {
   if (!server) return;
-  await new Promise(res => server.close(res));
+  await new Promise(res => { server.close(res); });
   server = null;
   base   = '';
 }
@@ -27,8 +27,9 @@ async function stop() {
  * Gibt { status, body, text, headers } zurück; body ist null, wenn die
  * Antwort kein JSON ist (z. B. bei Excel/PDF-Downloads).
  */
-async function req(path, { method = 'GET', token, body, raw = false } = {}) {
-  const headers = {};
+async function req(path, { method = 'GET', token, body, raw = false, headers: zusatz = {} } = {}) {
+  // zusatz: eigene Header, z. B. Origin für die CORS-Tests.
+  const headers = { ...zusatz };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 

@@ -103,30 +103,62 @@ router.put('/:id', auth, async (req, res, next) => {
 
 // PATCH /api/products/:id/stock — به‌روزرسانی موجودی فعلی (همان عملکرد گزارش‌گیری روزمره)
 router.patch('/:id/stock', auth, async (req, res) => {
-  const { currentStock } = req.body;
-    {
-      // Typprüfung VOR Number(): Number([]) ist 0, Number(["5"]) ist 5.
-      // Ohne diese Zeile setzt ein leeres Array den Bestand still auf null.
-      const geprueft = require('../lib/validate').parseStock(currentStock ?? 0);
-      if (geprueft === null) {
-        return res.status(400).json({ message: 'Ungültiger Bestandswert. Erwartet wird eine Zahl ab 0.' });
-      }
-    }
+  const { currentStock, updatedAt } = req.body;
 
-  // FIX: "currentStock < 0" به‌تنهایی مقادیر نامعتبر مثل NaN یا رشته را رد
-  // نمی‌کرد (NaN < 0 هم false است)، پس اینجا صراحتاً یک عدد متناهی و غیرمنفی
-  // می‌خواهیم.
-  const value = Number(currentStock);
-  if (currentStock === undefined || currentStock === null || !Number.isFinite(value) || value < 0)
-    return res.status(400).json({ message: 'Ungültiger Bestandswert' });
+  // Typprüfung VOR Number(): Number([]) ist 0, Number(["5"]) ist 5.
+  // Ohne sie setzt ein leeres Array den Bestand still auf null.
+  // Die Bestandsprüfung steht bewusst VOR der Versionsprüfung: ein
+  // unsinniger Wert ist ein unsinniger Wert, egal welche Version dabei
+  // liegt.
+  const wert = require('../lib/validate').parseStock(currentStock);
+  if (wert === null) {
+    return res.status(400).json({ message: 'Ungültiger Bestandswert. Erwartet wird eine Zahl ab 0.' });
+  }
 
-  const product = await Product.findByIdAndUpdate(
-    req.params.id,
-    { currentStock: value, updatedBy: req.user._id },
+  // ── Optimistische Sperre ──────────────────────────────────────
+  // Das Formular nimmt eine ABSOLUTE Zählung entgegen ("ich sehe 4 im
+  // Regal"), keine Bewegung. Zählen zwei Lageristen gleichzeitig, darf
+  // die ältere Zählung die neuere nicht überschreiben — und schon gar
+  // nicht lautlos. Beides zusammenzurechnen wäre falsch: dabei käme ein
+  // dritter Wert heraus, den niemand im Regal gesehen hat.
+  //
+  // Als Version dient updatedAt. Mongoose pflegt es bei jedem Update
+  // (timestamps: true). __v taugt nicht: findByIdAndUpdate zählt es
+  // nicht hoch, es bliebe also immer gleich.
+  if (updatedAt === undefined || updatedAt === null || updatedAt === '') {
+    return res.status(400).json({
+      message: 'Es fehlt der Stand, auf dem die Eingabe beruht (updatedAt).',
+      code: 'VERSION_REQUIRED'
+    });
+  }
+  const erwartet = new Date(updatedAt);
+  if (Number.isNaN(erwartet.getTime())) {
+    return res.status(400).json({ message: 'Ungültiger Wert für updatedAt.', code: 'VERSION_REQUIRED' });
+  }
+
+  // Prüfen und Schreiben in EINER Operation: zwischen einem getrennten
+  // Lesen und Schreiben passte sonst genau der Konflikt, den wir hier
+  // verhindern wollen.
+  const product = await Product.findOneAndUpdate(
+    { _id: req.params.id, updatedAt: erwartet },
+    { currentStock: wert, updatedBy: req.user._id },
     { returnDocument: 'after', runValidators: true }
   );
-  if (!product) return res.status(404).json({ message: 'Produkt nicht gefunden' });
-  res.json(product);
+  if (product) return res.json(product);
+
+  // Kein Treffer heißt zweierlei: das Produkt gibt es nicht, oder
+  // jemand war schneller. Die Fälle müssen unterschieden werden.
+  const aktuell = await Product.findById(req.params.id).lean();
+  if (!aktuell) return res.status(404).json({ message: 'Produkt nicht gefunden' });
+
+  // Der aktuelle Stand geht mit: ohne ihn kann der Aufrufer nur
+  // "Fehler" anzeigen, mit ihm kann er fragen und es erneut versuchen.
+  return res.status(409).json({
+    message: `Der Bestand wurde inzwischen auf ${aktuell.currentStock} geändert.`,
+    code: 'STOCK_CONFLICT',
+    currentStock: aktuell.currentStock,
+    updatedAt: aktuell.updatedAt
+  });
 });
 
 // DELETE /api/products/:id — غیرفعال‌کردن (پیش‌فرض) یا حذف کامل (?permanent=true, فقط ادمین)

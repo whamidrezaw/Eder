@@ -33,6 +33,10 @@ module.exports = async (req, res, next) => {
     req.user = user;
     next();
   } catch (err) {
+    // Hier landen nur unerwartete Fehler — abgelaufene und ungültige
+    // Token werden oben einzeln behandelt. Ohne diese Zeile blieb von
+    // einem echten Defekt nirgends eine Spur, der Benutzer sah nur 401.
+    console.error('[AUTH] Unerwarteter Fehler bei der Token-Prüfung:', err.message);
     return res.status(401).json({ message: 'Authentifizierung fehlgeschlagen' });
   }
 };

@@ -1,10 +1,11 @@
-require('dotenv').config();
+// dotenv wird bewusst NICHT hier geladen: server.js tut das, bevor es
+// diese Datei verlangt, und die Tests setzen ihre Werte in
+// test/helpers/env.js. Ein zweiter Aufruf änderte nichts und erzeugte
+// nur eine zweite Meldung beim Start.
 const express  = require('express');
-const mongoose = require('mongoose');
 const cors     = require('cors');
 const helmet   = require('helmet');
 const path     = require('path');
-const { scheduleDailyClose } = require('./services/dailyClose');
 
 const app = express();
 
@@ -41,23 +42,54 @@ app.use(helmet({
 }));
 
 // ── CORS ─────────────────────────────────────────────────────────
-// این اپ توکن را در هدر Authorization می‌فرستد (نه کوکی)، پس محدودیت
-// سخت‌گیرانه‌ی Origin اینجا ارزش امنیتی واقعی اضافه نمی‌کند — یک سایت
-// مخالف به توکن شما در sessionStorage دسترسی ندارد، چه CORS باز باشد چه بسته.
-// به همین خاطر هر Origin (آی‌پی سرور، دامنه، با/بدون پورت) را قبول می‌کنیم
-// تا محدود به یک آدرس از پیش‌تعیین‌شده در .env نباشید.
-// توجه: credentials:true عمداً *حذف* شده — این اپ هیچ کوکی‌ای ست نمی‌کند،
-// پس آن گزینه فقط می‌توانست در آینده (اگر روزی کوکی اضافه شود) به‌صورت
-// ناخواسته یک آسیب‌پذیری CSRF/کراس‌اورجین باز کند. اگر واقعاً یک روز
-// احراز هویت مبتنی بر کوکی اضافه کردید، اینجا را به یک allow-list واقعی
-// از Originهای مورد اعتماد تغییر دهید.
+// CORS entscheidet, welche ANDEREN Websites aus dem Browser heraus die
+// Antworten dieser API lesen dürfen. Es schützt NICHT den Server: eine
+// Anfrage aus einem Skript oder mit curl kümmert sich nicht darum.
+//
+// Die frühere Begründung für "alle Origins" bleibt richtig: angemeldet
+// wird über einen Authorization-Header, nicht über ein Cookie, und das
+// Token in sessionStorage ist für fremde Seiten unerreichbar. Das
+// Schließen hier ist Verteidigung in der Tiefe, kein offenes Leck.
+//
+// Das eigene Frontend kommt von derselben Adresse und braucht gar keine
+// Freigabe — der Browser prüft CORS nur zwischen VERSCHIEDENEN Origins.
+// Es läuft also über IP, Domain und jeden Port weiter, ohne dass etwas
+// in .env stehen muss. Das war das Ziel der alten Regel; es bleibt.
+//
+// Wer doch eine fremde Origin braucht, etwa einen eigenen Entwicklungs-
+// server, trägt sie kommagetrennt in CORS_ORIGINS ein.
+//
+// credentials:true bleibt bewusst weg: es gibt keine Cookies, und die
+// Option würde nur ein künftiges Risiko öffnen.
+const erlaubteOrigins = String(process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: (origin, callback) => callback(null, true)
+  // Ohne Origin-Header (gleiche Adresse, curl, Server-zu-Server) gibt es
+  // nichts zu entscheiden. Ist eine gesetzt, zählt allein die Liste.
+  origin: (origin, callback) => callback(null, !origin || erlaubteOrigins.includes(origin))
 }));
 
 // ── Body Parsing ─────────────────────────────────────────────────
+// Nur JSON. Das Frontend schickt ausschließlich JSON — api() in
+// shared.js und das Login-Formular in index.html. Der frühere
+// urlencoded-Parser wurde von niemandem gebraucht, verarbeitete aber
+// jeden solchen Körper VOR jeder Anmeldung mit qs. body-parser 2 nutzt
+// qs auch bei extended:false; nur das Entfernen nimmt qs aus dem Weg.
 app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+// In Express 5 bleibt req.body undefined, wenn kein Parser den Körper
+// gelesen hat — in Express 4 war es {}. Routen wie /login zerlegen
+// req.body direkt und stürzten dann mit einem TypeError ab: aus einem
+// Fehler des Aufrufers (400) wurde ein Serverfehler (500), samt
+// Stacktrace im Log und ohne Anmeldung auslösbar. Hier wird der
+// Express-4-Zustand wiederhergestellt, für alle Routen auf einmal.
+app.use((req, res, next) => {
+  if (req.body === undefined) req.body = {};
+  next();
+});
 
 // ── Static Frontend ───────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '../frontend')));
@@ -95,7 +127,10 @@ app.get('/{*path}', (req, res) => {
 // به‌صورت خودکار reject شدن یک async handler را به اینجا می‌فرستد) —
 // یک نقطه‌ی واحد برای تعیین status code درست و مخفی‌کردن جزئیات داخلی
 // در production، به‌جای تکرار همان منطق در تک‌تک روت‌ها.
-// eslint-disable-next-line no-unused-vars
+// Der Parameter next wird hier nicht benutzt, MUSS aber stehen bleiben:
+// Express erkennt einen Fehler-Handler an der Anzahl seiner Parameter.
+// Ohne den vierten Parameter ist das hier eine ganz normale Middleware
+// und Fehler laufen stumm daran vorbei.
 app.use((err, req, res, next) => {
   let status = err.status || err.statusCode || 500;
   let message = err.message || 'Interner Serverfehler';

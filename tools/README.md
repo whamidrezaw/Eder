@@ -16,6 +16,7 @@ Reihenfolge ihrer Entstehung.
 | `apply-eslint.sh` | Statische Prüfung |
 | `apply-e4.sh` | Aufräumen, Lint in der CI |
 | `apply-e1-tests.sh`, `apply-e1-fixes.sh` | Optimistische Sperre für Bestandsänderungen |
+| `apply-e2e3-tests.sh`, `apply-e2e3-fixes.sh` | Mengenbegrenzung je Benutzer, CORS nur auf Liste |
 
 Sie sind hier als Dokumentation des Wegs abgelegt, nicht zur erneuten
 Ausführung: jedes hat seine Änderungen bereits angewendet und prüft das

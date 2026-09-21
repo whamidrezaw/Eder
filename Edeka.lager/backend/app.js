@@ -73,8 +73,23 @@ app.use(cors({
 }));
 
 // ── Body Parsing ─────────────────────────────────────────────────
+// Nur JSON. Das Frontend schickt ausschließlich JSON — api() in
+// shared.js und das Login-Formular in index.html. Der frühere
+// urlencoded-Parser wurde von niemandem gebraucht, verarbeitete aber
+// jeden solchen Körper VOR jeder Anmeldung mit qs. body-parser 2 nutzt
+// qs auch bei extended:false; nur das Entfernen nimmt qs aus dem Weg.
 app.use(express.json({ limit: '10kb' }));
-app.use(express.urlencoded({ extended: true, limit: '10kb' }));
+
+// In Express 5 bleibt req.body undefined, wenn kein Parser den Körper
+// gelesen hat — in Express 4 war es {}. Routen wie /login zerlegen
+// req.body direkt und stürzten dann mit einem TypeError ab: aus einem
+// Fehler des Aufrufers (400) wurde ein Serverfehler (500), samt
+// Stacktrace im Log und ohne Anmeldung auslösbar. Hier wird der
+// Express-4-Zustand wiederhergestellt, für alle Routen auf einmal.
+app.use((req, res, next) => {
+  if (req.body === undefined) req.body = {};
+  next();
+});
 
 // ── Static Frontend ───────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, '../frontend')));

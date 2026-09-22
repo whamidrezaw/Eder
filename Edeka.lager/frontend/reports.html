@@ -217,7 +217,7 @@ function renderDrawerBody(log) {
     const items = log.snapshot.filter(p => p.category === cat);
     const rows = items.map(p => `
       <div class="drawer-row">
-        <span>${p.emoji || '📦'} ${escapeHtml(p.productName)}${p.isBio ? ' 🌱' : ''} <span style="color:var(--color-text-faint)">(${escapeHtml(p.unit)})</span></span>
+        <span>${escapeHtml(p.emoji || '📦')} ${escapeHtml(p.productName)}${p.isBio ? ' 🌱' : ''} <span style="color:var(--color-text-faint)">(${escapeHtml(p.unit)})</span></span>
         <span style="font-variant-numeric:tabular-nums">${fmtNum(p.closingStock)}${p.consumed > 0 ? ` <span style="color:var(--color-text-muted)">(−${fmtNum(p.consumed)})</span>` : ''}</span>
       </div>
     `).join('');

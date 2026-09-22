@@ -231,7 +231,7 @@ function renderKpis() {
     if (items.length === 0) {
       return `
         <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">${cat.emoji} ${escapeHtml(cat.name)}</span></div>
+          <div class="kpi-top"><span class="kpi-label">${escapeHtml(cat.emoji)} ${escapeHtml(cat.name)}</span></div>
           <div class="kpi-val" style="color:var(--color-text-faint)">0</div>
           <div class="kpi-delta">Keine Artikel</div>
         </div>`;
@@ -241,7 +241,7 @@ function renderKpis() {
     const breakdown = Object.entries(byUnit).map(([u, v]) => `${fmtNum(v)} ${u}`).join(' · ');
     return `
       <div class="kpi-card">
-        <div class="kpi-top"><span class="kpi-label">${cat.emoji} ${escapeHtml(cat.name)}</span></div>
+        <div class="kpi-top"><span class="kpi-label">${escapeHtml(cat.emoji)} ${escapeHtml(cat.name)}</span></div>
         <div class="kpi-val">${items.length}</div>
         <div class="kpi-delta">${breakdown}</div>
       </div>`;
@@ -292,7 +292,7 @@ function renderCategoryTabs() {
   wrap.innerHTML = tabs.map((t, i) => `
     <button class="filter-tab ${activeCategory === t.name && !bioOnly ? 'active' : ''}"
             data-cat-index="${i}">
-      ${t.emoji ? t.emoji + ' ' : ''}${escapeHtml(t.label)}
+      ${escapeHtml(t.emoji ? t.emoji + ' ' : '')}${escapeHtml(t.label)}
     </button>
   `).join('') + `
     <button class="filter-tab ${bioOnly ? 'active' : ''}" data-bio-toggle>🌱 Bio</button>
@@ -360,7 +360,7 @@ function renderTable() {
     <tr data-id="${p._id}">
       <td>
         <div class="product-cell">
-          <div class="product-emoji">${p.emoji || '📦'}</div>
+          <div class="product-emoji">${escapeHtml(p.emoji || '📦')}</div>
           <div>
             <div class="product-name">${escapeHtml(p.name)}</div>
             <div class="variant-tags">

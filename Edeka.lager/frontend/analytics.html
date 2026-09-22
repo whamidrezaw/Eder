@@ -263,7 +263,7 @@ function renderTopProducts(products) {
     <div class="top-item">
       <div class="top-rank">${i + 1}</div>
       <div class="top-info">
-        <div class="top-name">${p.emoji || '📦'} ${escapeHtml(p.name)}${p.isBio ? ' 🌱' : ''}</div>
+        <div class="top-name">${escapeHtml(p.emoji || '📦')} ${escapeHtml(p.name)}${p.isBio ? ' 🌱' : ''}</div>
         <div class="top-cat">${escapeHtml(p.category)} · ${escapeHtml(p.unit)}</div>
       </div>
       <div class="top-bar-wrap">

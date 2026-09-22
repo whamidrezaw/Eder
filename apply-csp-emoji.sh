@@ -176,7 +176,8 @@ echo
 echo "── Vorher: ROT erwartet ────────────────────────────────────────"
 echo
 ( cd "$BE" && node --test --test-reporter=spec test/unit/frontend-escaping.test.js test/integration/csp-markup.test.js ) 2>&1 \
-  | grep -E "^(✔|✖)|Inline-Handler|emoji-Einfügung|^\s+[a-z].*\.(html|js):[0-9]+" | head -30 || true
+  | grep -E "^(✔|✖)|Inline-Handler|emoji-Einfügung|^\s+[a-z].*\.(html|js):[0-9]+" \
+  | grep -vE "^\s+at |^\s+actual:" | head -30 || true
 
 # ── 3  Korrekturen (alles oder nichts) ───────────────────────────────
 echo
@@ -231,15 +232,40 @@ function frontendDateien(dir) {
   }
   return out;
 }
-// Nur die bekannte, eindeutige Form: ${objekt.emoji} oder ${objekt.emoji || '…'}.
-// Alles andere bleibt unangetastet — und fällt dann in der Prüfung unten auf.
-const EMOJI = /\$\{\s*((?:[A-Za-z_$][\w$]*\.)+emoji(?:\s*\|\|\s*(['"])[^'"]*\2)?)\s*\}/g;
+// Der GANZE Ausdruck in ${…} wird in escapeHtml(…) gehüllt. Das stimmt für
+// jede Form — ${p.emoji}, ${p.emoji || '📦'}, ${t.emoji ? t.emoji + ' ' : ''}.
+//
+// Aber nur für DATEN. Ein Ausdruck, der absichtlich HTML baut, etwa
+// ${renderBadge(p)}, würde durch das Einhüllen als Text angezeigt. Deshalb
+// wird nur eingehüllt, was keine Klammer, kein <, keinen Backtick und keine
+// geschweifte Klammer enthält. Alles andere bleibt stehen, fällt in der
+// Prüfung unten auf, und dann wird NICHTS geschrieben.
+const FUND   = /\$\{([^{}]*emoji[^{}]*)\}/gi;
+const DATEN  = (a) => !/[()<>`{}]/.test(a);
 let gesamt = 0;
+const brauchenShared = new Set();
 for (const f of frontendDateien(FE)) {
   const e = lade(f);
   let n = 0;
-  e.aktuell = e.aktuell.replace(EMOJI, (_m, ausdruck) => { n++; return '${escapeHtml(' + ausdruck + ')}'; });
-  if (n) { gesamt += n; meldungen.push(`\x1b[32m✓\x1b[0m ${path.relative(FE, f)}: ${n} emoji-Einfügung(en) maskiert`); }
+  e.aktuell = e.aktuell.replace(FUND, (ganz, ausdruck) => {
+    const a = ausdruck.trim();
+    if (a.startsWith('escapeHtml(') || !DATEN(a)) return ganz;
+    n++;
+    return '${escapeHtml(' + a + ')}';
+  });
+  if (n) {
+    gesamt += n;
+    brauchenShared.add(f);
+    meldungen.push(`\x1b[32m✓\x1b[0m ${path.relative(FE, f)}: ${n} emoji-Einfügung(en) maskiert`);
+  }
+}
+
+// escapeHtml kommt aus assets/shared.js. Eine Seite, die es nicht lädt,
+// würde beim Zeichnen mit ReferenceError abbrechen — schlimmer als vorher.
+for (const f of brauchenShared) {
+  if (!/<script[^>]+src=["'][^"']*shared\.js["']/i.test(lade(f).aktuell)) {
+    fehler.push(`${path.relative(FE, f)} bekäme escapeHtml, lädt aber assets/shared.js nicht`);
+  }
 }
 if (gesamt === 0) meldungen.push('\x1b[90m·\x1b[0m keine unmaskierte emoji-Einfügung (mehr) gefunden');
 
@@ -257,6 +283,29 @@ for (const [f, e] of dateien) {
   });
 }
 if (rest.length) fehler.push('emoji-Einfügungen in unbekannter Form, bitte schicken:\n       ' + rest.join('\n       '));
+
+// Jeder Inline-<script>-Block, der VORHER fehlerfrei zu parsen war, muss es
+// NACHHER auch sein. Verglichen wird nur, was diese Änderung verursacht —
+// ein Block, der schon vorher nicht zu parsen war, ist nicht unser Befund.
+function bloecke(html) {
+  const out = [];
+  for (const m of html.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script>/gi)) {
+    const attr = m[1] || '';
+    if (/\bsrc\s*=/.test(attr) || /type\s*=\s*["']module["']/i.test(attr)) continue;
+    out.push(m[2]);
+  }
+  return out;
+}
+const parst = (code) => { try { new Function(code); return true; } catch { return false; } };
+for (const [f, e] of dateien) {
+  if (!f.startsWith(FE) || !f.endsWith('.html') || e.aktuell === e.original) continue;
+  const vorher = bloecke(e.original), nachher = bloecke(e.aktuell);
+  nachher.forEach((b, i) => {
+    if (vorher[i] !== undefined && parst(vorher[i]) && !parst(b)) {
+      fehler.push(`${path.relative(FE, f)}: Skriptblock ${i + 1} ist nach der Änderung nicht mehr gültig`);
+    }
+  });
+}
 
 if (fehler.length) {
   console.log('\n  \x1b[31mEs wurde NICHTS geändert:\x1b[0m');

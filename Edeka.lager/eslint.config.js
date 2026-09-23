@@ -1,4 +1,6 @@
 'use strict';
+const fs   = require('node:fs');
+const path = require('node:path');
 //
 // Statische Prüfung für Backend (Node) und Frontend (Browser).
 //
@@ -79,6 +81,21 @@ const FEHLERREGELN = {
   'no-template-curly-in-string': 'warn'
 };
 
+
+// Namen, die assets/shared.js global bereitstellt. Bewusst aus der Datei
+// gelesen statt als Liste gepflegt: eine Liste waere beim naechsten Umbau
+// in shared.js still veraltet und wuerde entweder falsche Fehler melden
+// oder echte verdecken.
+function sharedGlobals() {
+  const datei = path.join(__dirname, 'frontend', 'assets', 'shared.js');
+  if (!fs.existsSync(datei)) return {};
+  const quelle = fs.readFileSync(datei, 'utf8');
+  const namen = new Set();
+  for (const m of quelle.matchAll(/^window\.([A-Za-z_$][\w$]*)\s*=/gm)) namen.add(m[1]);
+  for (const m of quelle.matchAll(/^(?:function|const|let|var)\s+([A-Za-z_$][\w$]*)/gm)) namen.add(m[1]);
+  return Object.fromEntries([...namen].map(n => [n, 'readonly']));
+}
+
 module.exports = [
   {
     ignores: [
@@ -96,7 +113,7 @@ module.exports = [
   {
     files: ['frontend/assets/**/*.js'],
     // Klassisches Browser-Skript, kein Modul.
-    languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: BROWSER_GLOBALS },
+    languageOptions: { ecmaVersion: 2023, sourceType: 'script', globals: { ...BROWSER_GLOBALS, ...sharedGlobals() } },
     rules: FEHLERREGELN
   }
 ];

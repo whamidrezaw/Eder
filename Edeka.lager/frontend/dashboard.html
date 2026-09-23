@@ -231,7 +231,7 @@ function renderKpis() {
     if (items.length === 0) {
       return `
         <div class="kpi-card">
-          <div class="kpi-top"><span class="kpi-label">${cat.emoji} ${escapeHtml(cat.name)}</span></div>
+          <div class="kpi-top"><span class="kpi-label">${escapeHtml(cat.emoji)} ${escapeHtml(cat.name)}</span></div>
           <div class="kpi-val" style="color:var(--color-text-faint)">0</div>
           <div class="kpi-delta">Keine Artikel</div>
         </div>`;
@@ -241,7 +241,7 @@ function renderKpis() {
     const breakdown = Object.entries(byUnit).map(([u, v]) => `${fmtNum(v)} ${u}`).join(' · ');
     return `
       <div class="kpi-card">
-        <div class="kpi-top"><span class="kpi-label">${cat.emoji} ${escapeHtml(cat.name)}</span></div>
+        <div class="kpi-top"><span class="kpi-label">${escapeHtml(cat.emoji)} ${escapeHtml(cat.name)}</span></div>
         <div class="kpi-val">${items.length}</div>
         <div class="kpi-delta">${breakdown}</div>
       </div>`;
@@ -292,7 +292,7 @@ function renderCategoryTabs() {
   wrap.innerHTML = tabs.map((t, i) => `
     <button class="filter-tab ${activeCategory === t.name && !bioOnly ? 'active' : ''}"
             data-cat-index="${i}">
-      ${t.emoji ? t.emoji + ' ' : ''}${escapeHtml(t.label)}
+      ${escapeHtml(t.emoji ? t.emoji + ' ' : '')}${escapeHtml(t.label)}
     </button>
   `).join('') + `
     <button class="filter-tab ${bioOnly ? 'active' : ''}" data-bio-toggle>🌱 Bio</button>
@@ -360,7 +360,7 @@ function renderTable() {
     <tr data-id="${p._id}">
       <td>
         <div class="product-cell">
-          <div class="product-emoji">${p.emoji || '📦'}</div>
+          <div class="product-emoji">${escapeHtml(p.emoji || '📦')}</div>
           <div>
             <div class="product-name">${escapeHtml(p.name)}</div>
             <div class="variant-tags">
@@ -391,55 +391,30 @@ function renderTable() {
 }
 
 // ── Bestand ändern ────────────────────────────────────────────────
-async function setStock(id, value) {
+// Die Schreiblogik liegt in assets/shared.js, damit sie ohne Browser
+// geprüft werden kann (test/unit/stock-writer.test.js). Hier bleiben
+// nur die beiden Namen, weil die Knöpfe sie direkt aufrufen.
+// Alle Abhängigkeiten werden faul gereicht: dieser Aufruf läuft beim
+// Laden, die Funktionen darunter gibt es zu dem Zeitpunkt vielleicht
+// noch nicht.
+const bestandsschreiber = createBestandsschreiber({
+  holeProdukt: (id)   => getProduct(id),
+  zeichne:     ()     => { renderKpis(); renderTable(); },
+  melde:       (text) => showToast(text, 'err'),
+  frage:       (text) => confirm(text),
+  schreibe:    (id, wert, version) =>
+    api(`/api/products/${id}/stock`, 'PATCH', { currentStock: wert, updatedAt: version })
+});
+
+function setStock(id, value) {
   const num = parseFloat(value);
   if (isNaN(num) || num < 0) { renderTable(); return; }
-  const p = getProduct(id);
-  if (!p || p.currentStock === num) return;
-
-  try {
-    // p.updatedAt ist die Version, die DIESER Nutzer gesehen hat — nicht
-    // ein frisch geholter Stand. Genau darauf beruht die Prüfung: hätten
-    // wir hier neu geladen, wäre das Fenster für den Konflikt nur ein
-    // paar Millisekunden groß und die Sperre wirkungslos.
-    const updated = await api(`/api/products/${id}/stock`, 'PATCH', {
-      currentStock: num,
-      updatedAt:    p.updatedAt
-    });
-    Object.assign(p, updated);
-    renderKpis();
-    renderTable();
-  } catch (e) {
-    // 409 heißt: jemand anders war schneller. Der lokale Stand ist damit
-    // veraltet — erst richtigstellen, dann fragen. Ohne die Rückfrage
-    // wäre die eigene Zählung einfach weg, und genau das war der Fehler.
-    if (e.status === 409 && e.data && e.data.code === 'STOCK_CONFLICT') {
-      p.currentStock = e.data.currentStock;
-      p.updatedAt    = e.data.updatedAt;
-      renderKpis();
-      renderTable();
-
-      const trotzdem = confirm(
-        'Jemand anderes hat den Bestand inzwischen auf ' + e.data.currentStock + ' geändert.' +
-        '\n\nDeine Zählung war ' + num + '.' +
-        '\n\nTrotzdem ' + num + ' eintragen?'
-      );
-      // Der zweite Versuch trägt die frische Version. Stimmt der Wert
-      // inzwischen ohnehin überein, bricht setStock von selbst ab.
-      if (trotzdem) await setStock(id, num);
-      return;
-    }
-    showToast('⚠️ ' + e.message, 'err');
-    renderTable();
-  }
+  bestandsschreiber.setzen(id, num);
 }
 window.setStock = setStock;
 
-async function adjustStock(id, delta) {
-  const p = getProduct(id);
-  if (!p) return;
-  const next = Math.max(0, Math.round(((p.currentStock || 0) + delta) * 10) / 10);
-  await setStock(id, next);
+function adjustStock(id, delta) {
+  bestandsschreiber.aendern(id, delta);
 }
 window.adjustStock = adjustStock;
 

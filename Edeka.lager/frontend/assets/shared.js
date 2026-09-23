@@ -194,6 +194,100 @@ async function sendReportNow() {
 }
 window.sendReportNow = sendReportNow;
 
+// 8b. bestandsschreiber
+// Schreibt Bestände gebündelt und je Produkt nacheinander.
+//
+// Warum: das Formular nimmt eine ABSOLUTE Zählung, und die ± Knöpfe rechnen
+// sie aus dem zuletzt bekannten Stand aus. Ohne Bündelung schickten drei
+// Klicks in einer Sekunde dreimal dieselbe veraltete Version mit, bekamen
+// 409 und behaupteten, jemand anderes habe geschrieben — obwohl es derselbe
+// Nutzer war. Jetzt gilt:
+//   · die Anzeige folgt dem Klick sofort (der Nutzer wartet auf nichts)
+//   · nach kurzer Ruhe geht EINE Anfrage mit dem Endwert
+//   · je Produkt läuft immer nur eine Anfrage; die nächste nimmt die
+//     Version, die deren Antwort zurückgegeben hat
+//   · ein 409 bedeutet damit wirklich: jemand anderes war schneller
+//
+// Alles von außen hereingereicht, damit test/unit/stock-writer.test.js das
+// ohne Browser prüfen kann.
+function createBestandsschreiber({ holeProdukt, zeichne, melde, frage, schreibe, verzoegerung = 400 }) {
+  const zustaende = new Map();
+
+  function zustand(id) {
+    if (!zustaende.has(id)) {
+      zustaende.set(id, { ziel: null, timer: null, laeuft: false, bestaetigt: undefined });
+    }
+    return zustaende.get(id);
+  }
+
+  function setzen(id, wert) {
+    const p = holeProdukt(id);
+    if (!p) return;
+    const s = zustand(id);
+    // Der zuletzt vom Server bestätigte Stand — die Anzeige läuft ihm voraus.
+    if (s.bestaetigt === undefined) s.bestaetigt = p.currentStock;
+    p.currentStock = wert;
+    s.ziel = wert;
+    zeichne();
+    if (s.timer) clearTimeout(s.timer);
+    s.timer = setTimeout(function () { s.timer = null; abarbeiten(id); }, verzoegerung);
+  }
+
+  function aendern(id, delta) {
+    const p = holeProdukt(id);
+    if (!p) return;
+    setzen(id, Math.max(0, Math.round(((p.currentStock || 0) + delta) * 10) / 10));
+  }
+
+  async function abarbeiten(id) {
+    const s = zustand(id);
+    if (s.laeuft) return;            // die laufende Schleife holt sich das Ziel selbst
+    s.laeuft = true;
+    try {
+      while (s.ziel !== null) {
+        const wert = s.ziel;
+        s.ziel = null;
+        const p = holeProdukt(id);
+        if (!p) break;
+        if (wert === s.bestaetigt) continue;
+
+        try {
+          const neu   = await schreibe(id, wert, p.updatedAt);
+          const offen = s.ziel;      // in der Zwischenzeit weitergeklickt?
+          Object.assign(p, neu);
+          s.bestaetigt = neu.currentStock;
+          if (offen !== null) p.currentStock = offen;
+          zeichne();
+        } catch (e) {
+          if (e && e.status === 409 && e.data && e.data.code === 'STOCK_CONFLICT') {
+            p.currentStock = e.data.currentStock;
+            p.updatedAt    = e.data.updatedAt;
+            s.bestaetigt   = e.data.currentStock;
+            s.ziel = null;
+            zeichne();
+            const weiter = frage(
+              'Jemand anderes hat den Bestand inzwischen auf ' + e.data.currentStock + ' geändert.' +
+              '\n\nDeine Zählung war ' + wert + '.' +
+              '\n\nTrotzdem ' + wert + ' eintragen?'
+            );
+            if (weiter) { p.currentStock = wert; s.ziel = wert; zeichne(); }
+          } else {
+            s.ziel = null;
+            if (s.bestaetigt !== undefined) p.currentStock = s.bestaetigt;
+            melde('⚠️ ' + ((e && e.message) || 'Fehler'));
+            zeichne();
+          }
+        }
+      }
+    } finally {
+      s.laeuft = false;
+    }
+  }
+
+  return { setzen, aendern };
+}
+window.createBestandsschreiber = createBestandsschreiber;
+
 // 9. csv_export (für ältere Exporte; Excel/PDF läuft über /api/reports/export)
 function downloadCSV(rows, filename) {
   const BOM = '\uFEFF';

@@ -1,3 +1,7 @@
+// Diese Funktionen werden aus Inline-Handlern im HTML aufgerufen, das
+// ESLint nicht liest. Bis Schritt B sie per addEventListener anbindet,
+// sagt die folgende Zeile ESLint, dass sie benutzt werden.
+/* exported setFilter, filterUsers, openLogPanel, openCreateModal, openEditModal, runConfirm, confirmToggle, confirmDeletePermanent */
 // Ausgelagert aus users.html (Phase F, Schritt A).
 // Inhalt unveraendert — nur der Ort hat sich geaendert, damit ESLint und
 // der vm-Harness diesen Code ueberhaupt sehen koennen.

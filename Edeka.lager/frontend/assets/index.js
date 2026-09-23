@@ -1,3 +1,7 @@
+// Diese Funktionen werden aus Inline-Handlern im HTML aufgerufen, das
+// ESLint nicht liest. Bis Schritt B sie per addEventListener anbindet,
+// sagt die folgende Zeile ESLint, dass sie benutzt werden.
+/* exported clearError */
 // Ausgelagert aus index.html (Phase F, Schritt A).
 // Inhalt unveraendert — nur der Ort hat sich geaendert, damit ESLint und
 // der vm-Harness diesen Code ueberhaupt sehen koennen.
@@ -120,6 +124,7 @@ document.getElementById('login-form').addEventListener('submit', async function 
     setTimeout(() => { window.location.href = 'dashboard.html'; }, 500);
 
   } catch (err) {
+    console.error('[index] Unerwarteter Fehler:', err);
     errorTxt.textContent = 'Verbindungsfehler. Bitte Internetverbindung prüfen.';
     errorEl.classList.add('visible');
     btn.classList.remove('loading');

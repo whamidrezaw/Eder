@@ -163,14 +163,16 @@ for (const [f, namen] of exportiere) {
     const alle = [...new Set([...alt, ...liste])];
     t = t.replace(vorhanden[0], `/* exported ${alle.join(', ')} */`);
   } else {
-    const anker = /^(['"])use strict\1;/m;
-    if (!anker.test(t)) { fehler.push(`${path.basename(f)}: 'use strict' nicht gefunden`); continue; }
+    // Ganz oben in die Datei — dort stehen ESLint-Direktiven üblicherweise.
+    // Kein Anker nötig: ein Kommentar am Dateianfang stört 'use strict' nie,
+    // ob die Datei eines hat oder nicht. (Die erste Fassung hängte sich an
+    // 'use strict' — und scheiterte an index.js, das offenbar keines hat.)
     const kopf =
       '// Diese Funktionen werden aus Inline-Handlern im HTML aufgerufen, das\n' +
       '// ESLint nicht liest. Bis Schritt B sie per addEventListener anbindet,\n' +
       '// sagt die folgende Zeile ESLint, dass sie benutzt werden.\n' +
       `/* exported ${liste.join(', ')} */\n`;
-    t = t.replace(anker, (m) => kopf + m);
+    t = kopf + t;
   }
   neu.set(f, t);
 }

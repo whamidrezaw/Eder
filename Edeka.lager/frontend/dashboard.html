@@ -23,16 +23,16 @@
 <div class="main-area">
   <header class="topbar">
     <div class="topbar-left">
-      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <button class="menu-toggle" data-action="seitenleisteUmschalten">☰</button>
       <div>
         <div class="topbar-title">📦 Bestandsübersicht</div>
         <div class="topbar-date" id="topbar-date"></div>
       </div>
     </div>
     <div class="topbar-right">
-      <button class="icon-btn" onclick="toggleTheme()" title="Theme wechseln">🌓</button>
-      <button class="icon-btn" id="admin-tools-btn" onclick="openAdminTools()" title="Admin-Werkzeuge" style="display:none">⚙️</button>
-      <button class="btn btn-primary" onclick="sendReportNow().then(refreshAll)">📤 Bericht senden</button>
+      <button class="icon-btn" data-action="themaWechseln" title="Theme wechseln">🌓</button>
+      <button class="icon-btn" id="admin-tools-btn" data-action="adminWerkzeugeOeffnen" title="Admin-Werkzeuge" style="display:none">⚙️</button>
+      <button class="btn btn-primary" data-action="berichtSendenUndAktualisieren">📤 Bericht senden</button>
     </div>
   </header>
 
@@ -50,8 +50,8 @@
     <div class="kpi-grid" id="overall-kpi-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 20px;"></div>
 
     <div class="toolbar">
-      <input type="search" class="form-ctrl" id="search-input" placeholder="🔍 Produkt suchen…" oninput="renderTable()">
-      <select class="form-ctrl unit-filter" id="unit-filter-select" onchange="renderTable()">
+      <input type="search" class="form-ctrl" id="search-input" placeholder="🔍 Produkt suchen…">
+      <select class="form-ctrl unit-filter" id="unit-filter-select">
         <option value="">Alle Einheiten</option>
       </select>
       <div class="filter-tabs" id="category-filter-tabs"></div>
@@ -64,7 +64,7 @@
           <div class="table-meta" id="table-meta">…</div>
         </div>
         <div class="table-actions">
-          <button class="btn btn-primary" onclick="openAddModal()">+ Produkt hinzufügen</button>
+          <button class="btn btn-primary" data-action="produktNeu">+ Produkt hinzufügen</button>
         </div>
       </div>
       <table>
@@ -95,9 +95,9 @@
   <div class="modal">
     <div class="modal-head">
       <div class="modal-title" id="product-modal-title">Produkt hinzufügen</div>
-      <div class="modal-close" onclick="closeProductModal()">✕</div>
+      <div class="modal-close" data-action="produktModalSchliessen">✕</div>
     </div>
-    <form id="product-form" onsubmit="return submitProductForm(event)">
+    <form id="product-form">
       <input type="hidden" id="product-id">
       <div class="form-row-3" style="margin-bottom:14px">
         <div class="form-group" style="margin-bottom:0">
@@ -132,7 +132,7 @@
       </div>
 
       <div style="display:flex; gap:8px; margin-top:18px">
-        <button type="button" class="btn btn-ghost" style="flex:1" onclick="closeProductModal()">Abbrechen</button>
+        <button type="button" class="btn btn-ghost" style="flex:1" data-action="produktModalSchliessen">Abbrechen</button>
         <button type="submit" class="btn btn-primary" style="flex:1">Speichern</button>
       </div>
     </form>
@@ -144,16 +144,16 @@
   <div class="modal">
     <div class="modal-head">
       <div class="modal-title">⚙️ Admin-Werkzeuge</div>
-      <div class="modal-close" onclick="closeAdminTools()">✕</div>
+      <div class="modal-close" data-action="adminWerkzeugeSchliessen">✕</div>
     </div>
     <p style="font-size:13px; color:var(--color-text-muted); margin-bottom:16px; line-height:1.6">
       Diese Aktionen wirken sich auf alle Produkte aus. Mit Bedacht verwenden.
     </p>
     <div style="display:flex; flex-direction:column; gap:8px">
-      <button class="btn btn-ghost" style="justify-content:flex-start" onclick="adminResetStock(false)">
+      <button class="btn btn-ghost" style="justify-content:flex-start" data-action="bestandZuruecksetzen" data-mit-gestern="false">
         🔄 Alle Bestände auf 0 setzen
       </button>
-      <button class="btn btn-ghost" style="justify-content:flex-start" onclick="adminResetStock(true)">
+      <button class="btn btn-ghost" style="justify-content:flex-start" data-action="bestandZuruecksetzen" data-mit-gestern="true">
         🔄 Bestände + Gestern-Basis auf 0 setzen
       </button>
     </div>
@@ -167,7 +167,7 @@
     <div class="confirm-title" id="confirm-title">Bist du sicher?</div>
     <div class="confirm-msg" id="confirm-msg"></div>
     <div class="confirm-btns">
-      <button class="btn btn-ghost" style="flex:1" onclick="closeConfirm()">Abbrechen</button>
+      <button class="btn btn-ghost" style="flex:1" data-action="bestaetigungSchliessen">Abbrechen</button>
       <button class="btn btn-danger" style="flex:1" id="confirm-action-btn">Bestätigen</button>
     </div>
   </div>

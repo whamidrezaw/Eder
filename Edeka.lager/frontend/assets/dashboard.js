@@ -198,18 +198,17 @@ function renderTable() {
       </td>
       <td>
         <div class="stepper">
-          <button class="step-btn minus" onclick="adjustStock('${p._id}', -${step})">−</button>
+          <button class="step-btn minus" data-action="bestandAendern" data-id="${escapeHtml(p._id)}" data-delta="-${step}">−</button>
           <input class="step-val" type="number" step="${step}" min="0" value="${p.currentStock}"
-                 onkeydown="if(event.key==='Enter'){this.blur();}"
-                 onblur="setStock('${p._id}', this.value)">
-          <button class="step-btn plus" onclick="adjustStock('${p._id}', ${step})">+</button>
+                 data-bestand-id="${escapeHtml(p._id)}">
+          <button class="step-btn plus" data-action="bestandAendern" data-id="${escapeHtml(p._id)}" data-delta="${step}">+</button>
         </div>
       </td>
       <td>${consumed > 0 ? `<span style="color:var(--color-text-muted)">−${fmtNum(consumed)}</span>` : '—'}</td>
       <td>
         <div class="row-acts">
-          <button class="row-act" onclick="openEditModal('${p._id}')" title="Bearbeiten">✏️</button>
-          <button class="row-act" onclick="confirmDeleteProduct('${p._id}')" title="Löschen">🗑️</button>
+          <button class="row-act" data-action="produktBearbeiten" data-id="${escapeHtml(p._id)}" title="Bearbeiten">✏️</button>
+          <button class="row-act" data-action="produktLoeschen" data-id="${escapeHtml(p._id)}" title="Löschen">🗑️</button>
         </div>
       </td>
     </tr>`;
@@ -409,3 +408,45 @@ document.addEventListener('DOMContentLoaded', () => {
   loadAll();
 });
 
+// ── Aktionen (Phase F, Schritt B1) ───────────────────────────────
+// Ersetzen die Inline-Handler in dashboard.html und in den Tabellenzeilen.
+// Der Listener sitzt in shared.js am Dokument; hier steht nur, welcher
+// Name was tut.
+registriereAktionen({
+  adminWerkzeugeOeffnen:    function () { openAdminTools(); },
+  adminWerkzeugeSchliessen: function () { closeAdminTools(); },
+  bestandZuruecksetzen:     function (el) { adminResetStock(el.dataset.mitGestern === 'true'); },
+  // Bisher onclick="sendReportNow().then(refreshAll)": schlug der Bericht
+  // fehl, blieb die Ablehnung unbehandelt. Die Meldung zeigt sendReportNow
+  // selbst — hier nur: bei Erfolg die Ansicht auffrischen.
+  berichtSendenUndAktualisieren: async function () {
+    try { await sendReportNow(); } catch { return; }
+    await refreshAll();
+  },
+  produktNeu:             function () { openAddModal(); },
+  produktModalSchliessen: function () { closeProductModal(); },
+  bestaetigungSchliessen: function () { closeConfirm(); },
+  bestandAendern:         function (el) { adjustStock(el.dataset.id, Number(el.dataset.delta)); },
+  produktBearbeiten:      function (el) { openEditModal(el.dataset.id); },
+  produktLoeschen:        function (el) { confirmDeleteProduct(el.dataset.id); }
+});
+
+document.getElementById('search-input').addEventListener('input', function () { renderTable(); });
+document.getElementById('unit-filter-select').addEventListener('change', function () { renderTable(); });
+// submitProductForm ruft als Erstes selbst evt.preventDefault() — das
+// "return" aus dem alten onsubmit war nie nötig.
+document.getElementById('product-form').addEventListener('submit', submitProductForm);
+
+// Bestandsfeld: blur steigt nicht auf, focusout schon — nur so erreicht es
+// einen Listener am Dokument. Enter verlässt das Feld wie bisher und löst
+// damit das Speichern aus.
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && e.target && e.target.matches && e.target.matches('.step-val[data-bestand-id]')) {
+    e.target.blur();
+  }
+});
+document.addEventListener('focusout', function (e) {
+  if (e.target && e.target.matches && e.target.matches('.step-val[data-bestand-id]')) {
+    setStock(e.target.dataset.bestandId, e.target.value);
+  }
+});

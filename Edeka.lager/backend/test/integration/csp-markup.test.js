@@ -32,6 +32,11 @@ function inlineHandler(dir = FE) {
     if (e.isDirectory()) { treffer.push(...inlineHandler(p)); continue; }
     if (!/\.(html|js)$/.test(e.name) || e.name === 'chart.umd.min.js') continue;
     fs.readFileSync(p, 'utf8').split('\n').forEach((zeile, i) => {
+      // Kommentarzeilen sind keine Handler. dashboard.js erklärt in einem
+      // Kommentar, warum dort KEIN onclick="..." mehr steht — ohne diese
+      // Zeile zählte genau diese Erklärung als Handler und hielte die CSP
+      // für immer offen.
+      if (/^\s*(\/\/|\/\*|\*|<!--)/.test(zeile)) return;
       // on…=" bzw. on…=' — also Attribute, nicht el.onclick = () => …
       for (const m of zeile.matchAll(/\s(on[a-z]+)\s*=\s*["']/gi)) {
         treffer.push(`${path.relative(FE, p)}:${i + 1} ${m[1]}`);

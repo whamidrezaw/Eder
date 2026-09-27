@@ -8,12 +8,19 @@ const { scheduleDailyClose, catchUpIfNeeded } = require('./services/dailyClose')
 // ersten Login mit einem 500er ab. Mit einem schwachen oder öffentlich
 // bekannten Schlüssel liefe er sogar dauerhaft weiter — dann kann jeder
 // ein Admin-Token fälschen. Beides ist schlimmer als ein Startabbruch.
-const { checkJwtSecret } = require('./lib/validate');
+const { checkJwtSecret, listenHost, checkProxyConfig } = require('./lib/validate');
 const jwtProblem = checkJwtSecret(process.env.JWT_SECRET);
 if (jwtProblem) {
   console.error('❌ Start abgebrochen: ' + jwtProblem);
   console.error('   Neuen Schlüssel erzeugen und in .env eintragen:');
   console.error('   node -e "console.log(\'JWT_SECRET=\' + require(\'crypto\').randomBytes(48).toString(\'base64url\'))" >> .env');
+  process.exit(1);
+}
+
+// ── Fail-fast: TRUST_PROXY nur hinter einem Tunnel auf DIESER Maschine ─
+const proxyProblem = checkProxyConfig(process.env);
+if (proxyProblem) {
+  console.error('❌ Start abgebrochen: ' + proxyProblem);
   process.exit(1);
 }
 
@@ -30,8 +37,16 @@ mongoose.connect(process.env.MONGODB_URI, {
       console.error('❌ Nachholen des Tagesabschlusses fehlgeschlagen:', err.message));
     scheduleDailyClose();   // بستن خودکار روز هر شب ۰۰:۰۰ (Europe/Berlin)
     const PORT = parseInt(process.env.PORT) || 3000;
-    app.listen(PORT, () => {
-      console.log(`✅ Server läuft auf Port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+    const HOST = listenHost(process.env);
+    // Express 5 übergibt einen Fehler beim Lauschen (etwa: Port belegt) an
+    // diesen Callback. Früher wurde er übergangen und trotzdem "läuft"
+    // gemeldet — ein Prozess, der Erfolg vortäuscht und nichts ausliefert.
+    app.listen(PORT, HOST, (err) => {
+      if (err) {
+        console.error(`❌ Kann nicht auf ${HOST}:${PORT} lauschen: ${err.code || err.message}`);
+        process.exit(1);
+      }
+      console.log(`✅ Server läuft auf ${HOST}:${PORT} [${process.env.NODE_ENV || 'development'}]`);
     });
   })
   .catch(err => {

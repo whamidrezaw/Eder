@@ -106,4 +106,31 @@ function parseRangeInt(value, { min, max, standard }) {
   return n;
 }
 
-module.exports = { parseIsoDate, parseStock, parseRangeInt, normalizeIp, checkJwtSecret };
+// ── Netzwerk ──────────────────────────────────────────────────────
+// Adresse, auf der der Server lauscht. Standard: nur die eigene Maschine.
+// Davor sitzt ein Tunnel auf demselben Rechner; niemand soll an ihm
+// vorbei direkt auf den Port der App.
+function listenHost(env) {
+  const h = env && typeof env.HOST === 'string' ? env.HOST.trim() : '';
+  return h || '127.0.0.1';
+}
+
+const LOOPBACK = new Set(['127.0.0.1', '::1', 'localhost']);
+
+// TRUST_PROXY=true heißt: dem Header X-Forwarded-For glauben. Sicher nur,
+// wenn ausschließlich der Proxy die App erreicht. Lauscht sie im Netz, kann
+// jeder Client den Header selbst setzen — die IP-Grenze beim Login wäre
+// umgangen, im Log stünden erfundene Adressen.
+// TRUST_PROXY wird GENAU wie in app.js gelesen (ohne trim): sonst meldete
+// diese Prüfung ein Problem, wo app.js gar nichts einschaltet.
+function checkProxyConfig(env) {
+  const vertrauen = String((env && env.TRUST_PROXY) || '').toLowerCase() === 'true';
+  if (!vertrauen) return null;
+  const host = listenHost(env);
+  if (LOOPBACK.has(host)) return null;
+  return 'TRUST_PROXY=true, aber HOST=' + host + ': Die App wäre direkt erreichbar, ' +
+    'und jeder Client könnte X-Forwarded-For fälschen. ' +
+    'HOST weglassen (Standard 127.0.0.1) oder TRUST_PROXY=false.';
+}
+
+module.exports = { parseIsoDate, parseStock, parseRangeInt, normalizeIp, checkJwtSecret, listenHost, checkProxyConfig };

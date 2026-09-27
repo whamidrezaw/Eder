@@ -71,7 +71,7 @@
 <div class="main-area">
   <header class="topbar">
     <div class="topbar-left">
-      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <button class="menu-toggle" data-action="seitenleisteUmschalten">☰</button>
       <div>
         <div class="topbar-title">👥 Benutzerverwaltung</div>
         <div class="topbar-date" id="topbar-date"></div>
@@ -80,10 +80,10 @@
     <div class="topbar-right">
       <div class="search-wrap">
         <input class="search-input" type="search" id="search-input"
-          placeholder="Benutzer suchen…" oninput="filterUsers()">
+          placeholder="Benutzer suchen…" data-benutzersuche>
       </div>
-      <button class="btn btn-yellow" onclick="openCreateModal()">＋ Neuer Benutzer</button>
-      <button class="icon-btn" onclick="toggleTheme()" title="Theme wechseln">🌓</button>
+      <button class="btn btn-yellow" data-action="benutzerNeu">＋ Neuer Benutzer</button>
+      <button class="icon-btn" data-action="themaWechseln" title="Theme wechseln">🌓</button>
     </div>
   </header>
 
@@ -115,11 +115,11 @@
     <!-- Filter -->
     <div class="controls-row">
       <div class="filter-tabs">
-        <button class="filter-tab active" onclick="setFilter('all',this)">Alle</button>
-        <button class="filter-tab" onclick="setFilter('admin',this)">🔑 Admins</button>
-        <button class="filter-tab" onclick="setFilter('lagerist',this)">📦 Lageristen</button>
-        <button class="filter-tab" onclick="setFilter('active',this)">🟢 Aktiv</button>
-        <button class="filter-tab" onclick="setFilter('inactive',this)">🔴 Inaktiv</button>
+        <button class="filter-tab active" data-action="filterSetzen" data-filter="all">Alle</button>
+        <button class="filter-tab" data-action="filterSetzen" data-filter="admin">🔑 Admins</button>
+        <button class="filter-tab" data-action="filterSetzen" data-filter="lagerist">📦 Lageristen</button>
+        <button class="filter-tab" data-action="filterSetzen" data-filter="active">🟢 Aktiv</button>
+        <button class="filter-tab" data-action="filterSetzen" data-filter="inactive">🔴 Inaktiv</button>
       </div>
     </div>
 
@@ -156,17 +156,17 @@
       <div style="font-size:14px;font-weight:700" id="log-panel-name">Login-Verlauf</div>
       <div style="font-size:11px;color:var(--color-text-muted)" id="log-panel-sub"></div>
     </div>
-    <button class="icon-btn" onclick="closeLogPanel()" style="margin-left:auto" title="Schließen">✕</button>
+    <button class="icon-btn" data-action="protokollSchliessen" style="margin-left:auto" title="Schließen">✕</button>
   </div>
   <div class="log-panel-body" id="log-panel-body"></div>
 </div>
 
 <!-- ── USER MODAL (Erstellen / Bearbeiten) ── -->
-<div class="modal-overlay" id="user-modal" onclick="if(event.target===this)closeUserModal()">
+<div class="modal-overlay" id="user-modal" data-action="benutzerDialogHintergrund">
   <div class="modal">
     <div class="modal-head">
       <div class="modal-title" id="modal-title">Neuer Benutzer</div>
-      <button class="modal-close" onclick="closeUserModal()">×</button>
+      <button class="modal-close" data-action="benutzerDialogSchliessen">×</button>
     </div>
 
     <div class="form-row">
@@ -219,8 +219,8 @@
     </div>
 
     <div class="form-footer">
-      <button class="btn btn-ghost" onclick="closeUserModal()">Abbrechen</button>
-      <button class="btn btn-primary" id="save-user-btn" onclick="saveUser()">Speichern</button>
+      <button class="btn btn-ghost" data-action="benutzerDialogSchliessen">Abbrechen</button>
+      <button class="btn btn-primary" id="save-user-btn" data-action="benutzerSpeichern">Speichern</button>
     </div>
   </div>
 </div>
@@ -232,8 +232,8 @@
     <div class="confirm-title" id="confirm-title">Sicher?</div>
     <div class="confirm-msg" id="confirm-msg"></div>
     <div class="confirm-btns">
-      <button class="btn btn-ghost" onclick="closeConfirm()">Abbrechen</button>
-      <button class="btn btn-primary" onclick="runConfirm()">Bestätigen</button>
+      <button class="btn btn-ghost" data-action="bestaetigungSchliessen">Abbrechen</button>
+      <button class="btn btn-primary" data-action="bestaetigen">Bestätigen</button>
     </div>
   </div>
 </div>

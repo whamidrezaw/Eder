@@ -53,7 +53,7 @@ function renderHistory() {
       <td>${row.reportsToday}</td>
       <td>
         <div class="row-acts">
-          <button class="row-act" title="Details" onclick="openDrawer('${row._id}', '${row.date}')">👁️</button>
+          <button class="row-act" title="Details" data-action="berichtOeffnen" data-log-id="${escapeHtml(row._id)}" data-datum="${escapeHtml(row.date)}">👁️</button>
         </div>
       </td>
     </tr>
@@ -185,3 +185,18 @@ document.addEventListener('DOMContentLoaded', () => {
   loadHistory();
 });
 
+// ── Aktionen (Phase F, Schritt B2) ───────────────────────────────
+registriereAktionen({
+  adminWerkzeugeOeffnen:    function () { openAdminTools(); },
+  adminWerkzeugeSchliessen: function () { closeAdminTools(); },
+  // Bisher onclick="if(event.target===this) closeDrawer()": nur ein Klick
+  // auf den abgedunkelten Hintergrund selbst schließt. closest() fände den
+  // Hintergrund auch von jedem Klick IM Drawer aus — daher die Bedingung.
+  drawerHintergrund:      function (el, e) { if (e.target === el) closeDrawer(); },
+  drawerSchliessen:       function () { closeDrawer(); },
+  logsLoeschen:           function (el) { adminResetLogs(el.dataset.bereich); },
+  tagAbschliessen:        function () { adminCloseDay(); },
+  bestaetigungSchliessen: function () { closeConfirm(); },
+  berichtOeffnen:         function (el) { return openDrawer(el.dataset.logId, el.dataset.datum); }
+});
+document.getElementById('limit-select').addEventListener('change', function () { loadHistory(); });

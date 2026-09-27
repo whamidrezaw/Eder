@@ -27,18 +27,14 @@ app.use(helmet({
     directives: {
       defaultSrc:  ["'self'"],
       scriptSrc:   ["'self'", "'unsafe-inline'"],
-      // VORÜBERGEHEND bis Phase F.
-      // helmet setzt von sich aus script-src-attr 'none' und verbietet damit
-      // jedes onclick="…" im Markup — obwohl scriptSrc oben 'unsafe-inline'
-      // erlaubt: für Attribute hat script-src-attr Vorrang. Das Frontend baut
-      // fast alle Knöpfe mit solchen Attributen; ohne diese Zeile war keiner
-      // davon je bedienbar.
-      //
-      // Der Preis: Inline-Handler sind wieder ein möglicher XSS-Weg. Deshalb
-      // läuft jede emoji-Einfügung jetzt durch escapeHtml. In Phase F werden
-      // die Handler durch addEventListener ersetzt und diese Zeile entfernt;
-      // test/integration/csp-markup.test.js erzwingt das dann von selbst.
-      scriptSrcAttr: ["'unsafe-inline'"],
+      // script-src-attr ausdrücklich 'none': kein onclick="…" im Markup wird
+      // ausgeführt. Bis Phase F stand hier vorübergehend 'unsafe-inline', weil
+      // das Frontend seine Knöpfe mit solchen Attributen baute; seit Phase F
+      // hängt jeder Knopf an data-action (shared.js). Ausdrücklich gesetzt statt
+      // der Voreinstellung von helmet überlassen: eine neue Version soll das
+      // nicht still ändern können. csp-markup.test.js hält CSP und Markup
+      // zusammen.
+      scriptSrcAttr: ["'none'"],
       styleSrc:    ["'self'", "'unsafe-inline'"],
       imgSrc:      ["'self'", "data:"],
       connectSrc:  ["'self'"],

@@ -51,8 +51,8 @@ async function loadToday() {
           ${r.reportSent ? '' : ' · <span style="color:var(--color-error)">Telegram fehlgeschlagen</span>'}
         </div>
         <div class="report-acts">
-          <button class="row-act" title="Excel" onclick="downloadReportFile('excel', {logId:'${r._id}'})">📊</button>
-          <button class="row-act" title="PDF" onclick="downloadReportFile('pdf', {logId:'${r._id}'})">📄</button>
+          <button class="row-act" title="Excel" data-action="exportBericht" data-typ="excel" data-log-id="${escapeHtml(r._id)}">📊</button>
+          <button class="row-act" title="PDF" data-action="exportBericht" data-typ="pdf" data-log-id="${escapeHtml(r._id)}">📄</button>
         </div>
       </div>
     `).join('');
@@ -191,3 +191,14 @@ function renderCategoryBreakdown(breakdown) {
 // ── Init ───────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', loadToday);
 
+// ── Aktionen (Phase F, Schritt B2) ───────────────────────────────
+registriereAktionen({
+  // handleSendReport sendet und lädt danach "Heute" neu. Schlägt das
+  // Senden fehl, zeigt sendReportNow die Meldung selbst und wirft weiter —
+  // hier abgefangen, sonst "Uncaught (in promise)".
+  berichtSendenUndAktualisieren: function () { return handleSendReport().catch(function () {}); },
+  tabWechseln:   function (el) { switchTab(el.dataset.tab); },
+  exportLive:    function (el) { return downloadReportFile(el.dataset.typ, {}); },
+  exportBericht: function (el) { return downloadReportFile(el.dataset.typ, { logId: el.dataset.logId }); }
+});
+document.getElementById('period-select').addEventListener('change', function () { loadTrend(); });

@@ -13,7 +13,11 @@ const path   = require('node:path');
 
 const FE = path.join(__dirname, '../../../frontend');
 
-const UMGESTELLT = ['dashboard.html', 'assets/dashboard.js', 'assets/shared.js'];
+const UMGESTELLT = [
+  'dashboard.html', 'analytics.html', 'reports.html', 'users.html', 'index.html',
+  'assets/dashboard.js', 'assets/analytics.js', 'assets/reports.js',
+  'assets/users.js', 'assets/index.js', 'assets/shared.js'
+];
 
 // Kommentarzeilen sind keine Handler — dashboard.js erklärt in einem
 // Kommentar, warum dort KEIN onclick="..." mehr steht.

@@ -1,7 +1,3 @@
-// Diese Funktionen werden aus Inline-Handlern im HTML aufgerufen, das
-// ESLint nicht liest. Bis Schritt B sie per addEventListener anbindet,
-// sagt die folgende Zeile ESLint, dass sie benutzt werden.
-/* exported setFilter, filterUsers, openLogPanel, openCreateModal, openEditModal, runConfirm, confirmToggle, confirmDeletePermanent */
 // Ausgelagert aus users.html (Phase F, Schritt A).
 // Inhalt unveraendert — nur der Ort hat sich geaendert, damit ESLint und
 // der vm-Harness diesen Code ueberhaupt sehen koennen.
@@ -137,20 +133,20 @@ function renderTable(users) {
       <td style="font-size:12px">${u.lastLogin ? fmtRelative(u.lastLogin) : '<span style="color:var(--color-text-faint)">Nie</span>'}</td>
       <td>
         <button class="btn btn-ghost" style="padding:5px 10px;font-size:12px"
-          onclick="openLogPanel('${u._id}')" ${cnt === 0 ? 'disabled style="opacity:0.4"' : ''}>
+          data-action="protokollOeffnen" data-id="${escapeHtml(u._id)}" ${cnt === 0 ? 'disabled style="opacity:0.4"' : ''}>
           ${cnt} Einträge
         </button>
       </td>
       <td style="font-size:12px;color:var(--color-text-muted)">${fmtDate(u.createdAt)}</td>
       <td>
         <div class="row-acts">
-          <button class="row-act" onclick="openEditModal('${u._id}')" title="Bearbeiten">✏️</button>
+          <button class="row-act" data-action="benutzerBearbeiten" data-id="${escapeHtml(u._id)}" title="Bearbeiten">✏️</button>
           ${!isOwnId(u._id) ? `
           <button class="row-act ${active ? 'warning' : 'success'}"
-            onclick="confirmToggle('${u._id}')"
+            data-action="benutzerUmschalten" data-id="${escapeHtml(u._id)}"
             title="${active ? 'Deaktivieren' : 'Aktivieren'}">${active ? '🔒' : '🔓'}</button>
           <button class="row-act danger"
-            onclick="confirmDeletePermanent('${u._id}')"
+            data-action="benutzerLoeschen" data-id="${escapeHtml(u._id)}"
             title="Endgültig löschen">🗑️</button>` : ''}
         </div>
       </td>
@@ -350,3 +346,25 @@ document.addEventListener('click', e => {
 /* ── INIT ── */
 loadUsers();
 
+// ── Aktionen (Phase F, Schritt B2) ───────────────────────────────
+registriereAktionen({
+  benutzerNeu:               function () { openCreateModal(); },
+  // Bisher setFilter('all', this) — der Knopf selbst wird gebraucht, um
+  // ihn als aktiven Reiter zu markieren.
+  filterSetzen:              function (el) { setFilter(el.dataset.filter, el); },
+  protokollOeffnen:          function (el) { openLogPanel(el.dataset.id); },
+  protokollSchliessen:       function () { closeLogPanel(); },
+  // Nur der Klick auf den Hintergrund selbst schließt — nicht einer in
+  // ein Formularfeld des Dialogs (siehe Kommentar in reports.js).
+  benutzerDialogHintergrund: function (el, e) { if (e.target === el) closeUserModal(); },
+  benutzerDialogSchliessen:  function () { closeUserModal(); },
+  benutzerSpeichern:         function () { return saveUser(); },
+  benutzerBearbeiten:        function (el) { openEditModal(el.dataset.id); },
+  benutzerUmschalten:        function (el) { confirmToggle(el.dataset.id); },
+  benutzerLoeschen:          function (el) { confirmDeletePermanent(el.dataset.id); },
+  bestaetigungSchliessen:    function () { closeConfirm(); },
+  bestaetigen:               function () { runConfirm(); }
+});
+// Die id des Suchfelds war im Quelltext nicht sichtbar; statt sie zu
+// raten, trägt das Feld jetzt das Merkmal data-benutzersuche.
+document.querySelector('[data-benutzersuche]').addEventListener('input', function () { filterUsers(); });

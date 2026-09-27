@@ -18,23 +18,23 @@
 <div class="main-area">
   <header class="topbar">
     <div class="topbar-left">
-      <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+      <button class="menu-toggle" data-action="seitenleisteUmschalten">☰</button>
       <div>
         <div class="topbar-title">📊 Analyse &amp; Berichte</div>
         <div class="topbar-date" id="topbar-date"></div>
       </div>
     </div>
     <div class="topbar-right">
-      <button class="icon-btn" onclick="toggleTheme()" title="Theme wechseln">🌓</button>
-      <button class="btn btn-primary" onclick="handleSendReport()">📤 Bericht jetzt senden</button>
+      <button class="icon-btn" data-action="themaWechseln" title="Theme wechseln">🌓</button>
+      <button class="btn btn-primary" data-action="berichtSendenUndAktualisieren">📤 Bericht jetzt senden</button>
     </div>
   </header>
 
   <main class="content">
 
     <div class="filter-tabs" style="margin-bottom:18px">
-      <button class="filter-tab active" id="tab-btn-today" onclick="switchTab('today')">📅 Heute</button>
-      <button class="filter-tab" id="tab-btn-trend" onclick="switchTab('trend')">📈 Verlauf</button>
+      <button class="filter-tab active" id="tab-btn-today" data-action="tabWechseln" data-tab="today">📅 Heute</button>
+      <button class="filter-tab" id="tab-btn-trend" data-action="tabWechseln" data-tab="trend">📈 Verlauf</button>
     </div>
 
     <!-- ── TAB: Heute ─────────────────────────────────────────── -->
@@ -45,8 +45,8 @@
           <div class="table-meta" id="today-meta">…</div>
         </div>
         <div class="table-actions">
-          <button class="btn btn-ghost" onclick="downloadReportFile('excel', {})">📊 Excel (Live)</button>
-          <button class="btn btn-ghost" onclick="downloadReportFile('pdf', {})">📄 PDF (Live)</button>
+          <button class="btn btn-ghost" data-action="exportLive" data-typ="excel">📊 Excel (Live)</button>
+          <button class="btn btn-ghost" data-action="exportLive" data-typ="pdf">📄 PDF (Live)</button>
         </div>
       </div>
 
@@ -63,7 +63,7 @@
     <!-- ── TAB: Verlauf ───────────────────────────────────────── -->
     <div class="tab-content" id="tab-trend">
       <div class="toolbar" style="margin-bottom:16px">
-        <select class="form-ctrl period-select" id="period-select" onchange="loadTrend()">
+        <select class="form-ctrl period-select" id="period-select">
           <option value="7">Letzte 7 Tage</option>
           <option value="14" selected>Letzte 14 Tage</option>
           <option value="30">Letzte 30 Tage</option>

@@ -1,12 +1,9 @@
-// Diese Funktionen werden aus Inline-Handlern im HTML aufgerufen, das
-// ESLint nicht liest. Bis Schritt B sie per addEventListener anbindet,
-// sagt die folgende Zeile ESLint, dass sie benutzt werden.
-/* exported clearError */
 // Ausgelagert aus index.html (Phase F, Schritt A).
 // Inhalt unveraendert — nur der Ort hat sich geaendert, damit ESLint und
 // der vm-Harness diesen Code ueberhaupt sehen koennen.
-// Ein Kommentar vor 'use strict' ist unschaedlich: die Direktive muss die
-// erste ANWEISUNG sein, nicht die erste Zeile.
+// Anders als die übrigen Seiten hat diese Datei KEIN 'use strict' — die
+// Anmeldeseite lief schon immer im nicht-strikten Modus. Das bleibt so, bis
+// es jemand bewusst prüft: eine Verlagerung ändert kein Verhalten.
 /* ── BEREITS EINGELOGGT? ── */
 (function () {
   const t = sessionStorage.getItem('token');
@@ -142,3 +139,9 @@ document.getElementById('username').addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); document.getElementById('password').focus(); }
 });
 
+// ── Anbindung (Phase F, Schritt B2) ──────────────────────────────
+// Bisher oninput="clearError()" an beiden Eingabefeldern. Diese Seite lädt
+// shared.js bewusst nicht — es gibt hier keine Registry, also direkt.
+document.querySelectorAll('[data-fehler-zuruecksetzen]').forEach(function (el) {
+  el.addEventListener('input', function () { clearError(); });
+});

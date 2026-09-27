@@ -92,7 +92,10 @@ function sharedGlobals() {
   const quelle = fs.readFileSync(datei, 'utf8');
   const namen = new Set();
   for (const m of quelle.matchAll(/^window\.([A-Za-z_$][\w$]*)\s*=/gm)) namen.add(m[1]);
-  for (const m of quelle.matchAll(/^(?:function|const|let|var)\s+([A-Za-z_$][\w$]*)/gm)) namen.add(m[1]);
+  // Auch "async function" und "function*": shared.js deklariert etwa
+  // downloadReportFile so. Die erste Fassung übersah das — sichtbar erst,
+  // als ein Aufruf aus einem onclick-String zu echtem Code wurde.
+  for (const m of quelle.matchAll(/^(?:async\s+function\*?|function\*?|const|let|var)\s+([A-Za-z_$][\w$]*)/gm)) namen.add(m[1]);
   return Object.fromEntries([...namen].map(n => [n, 'readonly']));
 }
 

@@ -411,7 +411,7 @@ input { font: inherit; color: inherit; }
               id="username" name="username"
               placeholder="z.B. admin"
               autocomplete="username" required
-              oninput="clearError()">
+              data-fehler-zuruecksetzen>
             <span class="input-icon">👤</span>
           </div>
         </div>
@@ -425,7 +425,7 @@ input { font: inherit; color: inherit; }
               id="password" name="password"
               placeholder="••••••••"
               autocomplete="current-password" required
-              oninput="clearError()">
+              data-fehler-zuruecksetzen>
             <button type="button" class="pwd-toggle" id="pwd-toggle" aria-label="Passwort anzeigen" title="Passwort anzeigen/verbergen">
               👁
             </button>

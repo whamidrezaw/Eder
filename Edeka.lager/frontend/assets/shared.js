@@ -288,6 +288,72 @@ function createBestandsschreiber({ holeProdukt, zeichne, melde, frage, schreibe,
 }
 window.createBestandsschreiber = createBestandsschreiber;
 
+// 8c. aktionen
+// Ersetzt onclick="…" im Markup. Ein Element trägt data-action="name", und
+// EIN Listener am Dokument ruft die registrierte Funktion — auch für Zeilen,
+// die erst später gerendert werden, ohne erneutes Anbinden.
+//
+// Warum nicht einfach onclick: helmet setzt script-src-attr 'none', und das
+// Ziel von Phase F ist, diese Sperre wieder zu schließen. Nebenbei landet
+// kein Wert mehr in einem JS-String im HTML — genau der Weg, über den früher
+// ein Kategoriename Code ausführen konnte (siehe Kommentar in dashboard.js).
+const _aktionen = Object.create(null);
+
+function registriereAktionen(tabelle) {
+  for (const name of Object.keys(tabelle)) {
+    const fn = tabelle[name];
+    if (_aktionen[name] && _aktionen[name] !== fn) {
+      console.warn('[Aktionen] "' + name + '" wird überschrieben');
+    }
+    _aktionen[name] = fn;
+  }
+}
+
+function aktionIstRegistriert(name) {
+  return typeof _aktionen[name] === 'function';
+}
+
+// Getrennt vom Listener, damit Tests sie ohne Browser aufrufen können.
+function aktionAusfuehren(ereignis) {
+  const ziel = ereignis && ereignis.target;
+  const el = ziel && typeof ziel.closest === 'function' ? ziel.closest('[data-action]') : null;
+  if (!el) return false;
+  const name = el.dataset ? el.dataset.action : undefined;
+  const fn = _aktionen[name];
+  if (typeof fn !== 'function') {
+    // Ein Tippfehler in data-action soll auffallen, nicht still scheitern.
+    console.warn('[Aktionen] unbekannte Aktion:', name);
+    return false;
+  }
+  try {
+    const ergebnis = fn(el, ereignis);
+    // Async-Aktionen: eine Ablehnung wird protokolliert statt als
+    // "Uncaught (in promise)" in der Konsole zu landen.
+    if (ergebnis && typeof ergebnis.then === 'function') {
+      ergebnis.then(null, function (err) { console.error('[Aktionen] ' + name + ':', err); });
+    }
+  } catch (err) {
+    console.error('[Aktionen] ' + name + ':', err);
+  }
+  return true;
+}
+
+document.addEventListener('click', aktionAusfuehren);
+
+// Die Seitenleiste erscheint auf JEDER Seite, also gehören ihre Aktionen
+// hierher. sendReportNow zeigt eine Fehlermeldung selbst und wirft dann
+// weiter — hier gibt es niemanden mehr, der darauf reagieren müsste.
+registriereAktionen({
+  berichtSenden:          function () { return sendReportNow().catch(function () {}); },
+  abmelden:               function () { logout(); },
+  themaWechseln:          function () { toggleTheme(); },
+  seitenleisteUmschalten: function () { toggleSidebar(); }
+});
+
+window.registriereAktionen  = registriereAktionen;
+window.aktionIstRegistriert = aktionIstRegistriert;
+window.aktionAusfuehren     = aktionAusfuehren;
+
 // 9. csv_export (für ältere Exporte; Excel/PDF läuft über /api/reports/export)
 function downloadCSV(rows, filename) {
   const BOM = '\uFEFF';
@@ -439,7 +505,7 @@ function injectSidebar() {
     </a>
 
     <div class="nav-section-title">Verwaltung</div>
-    <button class="nav-item" onclick="sendReportNow()" style="width:100%; text-align:left;">
+    <button class="nav-item" data-action="berichtSenden" style="width:100%; text-align:left;">
       <span class="nav-icon">📤</span> Bericht jetzt senden
     </button>
     ${isAdmin ? `
@@ -455,7 +521,7 @@ function injectSidebar() {
           <div class="user-name" id="user-name-display">${escapeHtml(currentUser.name || 'Administrator')}</div>
           <div class="user-role" id="user-role-display">${escapeHtml(currentUser.role || 'lagerist')}</div>
         </div>
-        <button class="logout-btn" onclick="logout()" title="Abmelden">
+        <button class="logout-btn" data-action="abmelden" title="Abmelden">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
           </svg>

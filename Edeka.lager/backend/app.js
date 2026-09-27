@@ -120,8 +120,7 @@ app.get('/api/health', (req, res) => {
   res.json({
     status:    'ok',
     uptime:    Math.floor(process.uptime()),
-    timestamp: new Date().toISOString(),
-    env:       process.env.NODE_ENV || 'development'
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -131,40 +130,9 @@ app.get('/{*path}', (req, res) => {
 });
 
 // ── Global Error Handler ──────────────────────────────────────────
-// همه‌ی روت‌ها حالا خطاهای async را به اینجا پاس می‌دهند (یا Express 5
-// به‌صورت خودکار reject شدن یک async handler را به اینجا می‌فرستد) —
-// یک نقطه‌ی واحد برای تعیین status code درست و مخفی‌کردن جزئیات داخلی
-// در production، به‌جای تکرار همان منطق در تک‌تک روت‌ها.
-// Der Parameter next wird hier nicht benutzt, MUSS aber stehen bleiben:
-// Express erkennt einen Fehler-Handler an der Anzahl seiner Parameter.
-// Ohne den vierten Parameter ist das hier eine ganz normale Middleware
-// und Fehler laufen stumm daran vorbei.
-app.use((err, req, res, next) => {
-  let status = err.status || err.statusCode || 500;
-  let message = err.message || 'Interner Serverfehler';
-
-  // خطاهای شناخته‌شده‌ی Mongoose → status code درست به‌جای 500 عمومی
-  if (err.name === 'CastError') {
-    status = 400;
-    message = 'Ungültige ID';
-  } else if (err.name === 'ValidationError') {
-    status = 400;
-    message = Object.values(err.errors || {}).map(e => e.message).join(', ') || 'Ungültige Eingabe';
-  } else if (err.code === 11000) {
-    status = 409;
-    message = 'Dieser Eintrag existiert bereits';
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(`[ERROR] ${req.method} ${req.path}:`, err.stack || err.message);
-  }
-
-  res.status(status).json({
-    message: (status === 500 && process.env.NODE_ENV === 'production')
-      ? 'Interner Serverfehler'
-      : message
-  });
-});
+// Steht in lib/fehlerbehandlung.js, damit er Tests hat. Muss die letzte
+// Middleware bleiben: nur so erreichen ihn die Fehler aller Routen.
+app.use(require('./lib/fehlerbehandlung'));
 
 // ── Export ───────────────────────────────────────────────────────
 // Diese Datei baut die Express-App nur auf. Sie verbindet sich NICHT mit

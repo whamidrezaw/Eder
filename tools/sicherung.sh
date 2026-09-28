@@ -41,6 +41,25 @@ liste() {
           .forEach(c => print('Z ' + c + ' ' + d.getCollection(c).countDocuments({}) + ' ' + d.getCollection(c).getIndexes().length));" | sort
 }
 
+# ── Wächter vor jedem Löschen ────────────────────────────────────────
+# Weiter unten löscht dieses Skript alte Sicherungen und abgebrochene Reste
+# mit rm -rf. Vorher muss ZIEL ein eigener, echter Ordner sein: Symlinks
+# aufgelöst, absolut, mindestens drei Ebenen tief, kein Systemordner, und
+# falls es ihn schon gibt, ein Verzeichnis von root oder $BESITZER.
+# (test/unit/sicherung-pfad.test.js)
+case "$ZIEL" in /*) ;; *) fehler "ZIEL muss ein absoluter Pfad sein: '$ZIEL'" ;; esac
+ZIEL=$(realpath -m -- "$ZIEL")
+[ "$(printf '%s' "$ZIEL" | tr -cd '/' | wc -c)" -ge 3 ] || fehler "ZIEL liegt zu weit oben im Dateisystem: '$ZIEL'"
+case "$ZIEL/" in
+  /bin/*|/boot/*|/dev/*|/etc/*|/lib/*|/lib64/*|/proc/*|/run/*|/sbin/*|/sys/*|/usr/*|/var/lib/*|/var/log/*)
+    fehler "ZIEL liegt in einem Systemordner: '$ZIEL'" ;;
+esac
+if [ -e "$ZIEL" ]; then
+  [ -d "$ZIEL" ] || fehler "ZIEL ist kein Verzeichnis: '$ZIEL'"
+  EIGNER=$(stat -c %U -- "$ZIEL")
+  [ "$EIGNER" = root ] || [ "$EIGNER" = "$BESITZER" ] || fehler "ZIEL gehört '$EIGNER' — erwartet root oder $BESITZER: '$ZIEL'"
+fi
+
 [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER" 2>/dev/null || true)" = "true" ] \
   || fehler "Container $CONTAINER läuft nicht."
 

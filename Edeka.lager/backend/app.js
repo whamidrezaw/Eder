@@ -26,7 +26,11 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc:  ["'self'"],
-      scriptSrc:   ["'self'", "'unsafe-inline'"],
+      // Nur Skripte von hier. 'unsafe-inline' ist weg: seit Phase F hat die
+      // App weder <script>-Blöcke im Markup noch javascript:-Adressen.
+      // Eingeschleustes HTML kann damit keinen Code mehr ausführen.
+      // test/integration/csp-skripte.test.js hält CSP und Markup zusammen.
+      scriptSrc:   ["'self'"],
       // script-src-attr ausdrücklich 'none': kein onclick="…" im Markup wird
       // ausgeführt. Bis Phase F stand hier vorübergehend 'unsafe-inline', weil
       // das Frontend seine Knöpfe mit solchen Attributen baute; seit Phase F

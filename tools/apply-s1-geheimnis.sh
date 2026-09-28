@@ -206,7 +206,8 @@ test('keine Archive und keine .env-Dateien im Repository', (t) => {
 });
 EOF
 node --check "$T" >/dev/null 2>&1 || die "Syntaxfehler in $T"
-ROT=$( cd "$BE" && node --test test/unit/keine-geheimnisse.test.js 2>&1 | grep -cE '^# fail [1-9]' || true )
+# Exit-Code statt Textformat: TAP oder spec hängt von der Node-Version ab.
+ROT=0; ( cd "$BE" && node --test test/unit/keine-geheimnisse.test.js >/dev/null 2>&1 ) || ROT=1
 
 if git ls-files --error-unmatch "$ZIP" >/dev/null 2>&1; then
   git rm -q "$ZIP"
@@ -233,7 +234,7 @@ while IFS= read -r V; do
   ! git check-ignore -q --no-index "$V" || die "$V würde ignoriert — bitte melden"
 done < <(git ls-files | grep -E '(^|/)\.env[^/]*\.example$')
 
-GRUEN=$( cd "$BE" && node --test test/unit/keine-geheimnisse.test.js 2>&1 | grep -cE '^# fail 0' || true )
+GRUEN=0; ( cd "$BE" && node --test test/unit/keine-geheimnisse.test.js >/dev/null 2>&1 ) && GRUEN=1
 FERTIG=1
 if [ "$ROT" = "1" ] && [ "$GRUEN" = "1" ]; then ok "Test keine-geheimnisse: vorher rot, jetzt grün"
 elif [ "$GRUEN" = "1" ]; then ok "Test keine-geheimnisse: grün"

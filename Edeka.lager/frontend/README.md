@@ -1,79 +1,58 @@
-# EDEKA Lager — Frontend (بازنویسی شده)
+# EDEKA Lagerverwaltung — Frontend
 
-## 🆕 این بخش مربوط به آخرین بررسی است (رفع باگ + امنیت)
+Statische Seiten, vom Backend ausgeliefert. Kein Build-Schritt und keine
+externen Quellen: Schriften und Chart.js liegen in `assets/`.
 
-یک بررسی کامل روی کل پروژه انجام شد. مهم‌ترین چیزهایی که در **این دور** در
-فرانت‌اند اصلاح شدند (جزئیات کامل در پاسخ چت):
+## Seiten
 
-| فایل | چه چیزی اصلاح شد |
-|---|---|
-| `users.html` | 🔴 **باگ اصلی پروژه.** همه‌جا از `u.id` استفاده می‌شد، ولی بک‌اند برای User فقط `_id` برمی‌گرداند (نه `id`) — یعنی ویرایش، فعال/غیرفعال‌کردن، حذف دائم، و دیدن Login-Verlauf هرکدام عملاً **هیچ‌کاری نمی‌کردند** (کلیک بی‌اثر بود). این با یک تست واقعی jsdom تأیید و رفع شد. علاوه بر آن: `u.name`/`u.username`/`u.telegramChatId`/IP لاگین بدون escape در HTML قرار می‌گرفتند (Stored XSS)؛ و کل صفحه حالا به‌جای کد تکراری از `assets/shared.js|css` استفاده می‌کند. |
-| `dashboard.html` | نام دسته‌بندی (که هر کاربر لاگین‌شده، نه فقط ادمین، می‌تواند بسازد) مستقیم داخل `onclick="...('${name}')"` قرار می‌گرفت — یک نام حاوی کوتیشن می‌توانست جاوااسکریپت دلخواه اجرا کند. با `data-*` attribute + `addEventListener` رفع شد. |
-| `analytics.html` | Chart.js از CDN (`cdn.jsdelivr.net`) لود می‌شد ولی CSP سرور آن دامنه را مجاز نمی‌دانست — یعنی نمودار تب «Verlauf» اصلاً رندر نمی‌شد. حالا Chart.js لوکال در `assets/chart.umd.min.js` سرو می‌شود. |
-| `index.html` | یک دکمه‌ی «⚡ Demo ausfüllen» بود که یوزرنیم/پسورد `admin`/`admin123` را در فرم واقعی لاگین پر می‌کرد — روی صفحه‌ی ورود واقعی (با دامنه‌ی واقعی در `.env`) این خطرناک است، حذف شد. متن تبلیغاتی «Bestellvorschläge» (که دیگر وجود ندارد) اصلاح شد. وابستگی به Google Fonts (که با CSP مسدود بود) حذف شد. |
-| `assets/shared.css` | یک کلاس (`sidebar-logo-text`) استفاده می‌شد ولی هیچ‌جا تعریف نشده بود؛ اضافه شد. |
+| Seite | Zweck | Skript |
+|---|---|---|
+| `index.html` | Anmeldung | `assets/index.js` — lädt `shared.js` bewusst nicht |
+| `dashboard.html` | Bestand und Produkte | `assets/dashboard.js` |
+| `analytics.html` | Analyse: Heute und Verlauf, Excel/PDF | `assets/analytics.js` |
+| `reports.html` | Tagesberichte | `assets/reports.js` |
+| `users.html` | Benutzerverwaltung (Admins) | `assets/users.js` |
 
-### تصحیح دو ادعای نسخه‌ی قبلی این فایل
-جدول زیر می‌گفت `index.html` «دست‌نخورده» می‌ماند و `users.html` فقط لینک‌های
-ناوبری‌اش اصلاح می‌شود — هر دو در **این** دور به‌خاطر باگ/امنیت تغییر کردند
-(جدول بالا). بخش «نکته‌ی مهم درباره‌ی ساختار» زیر هم دیگر دقیق نیست: الان
-`users.html` هم مثل بقیه از `assets/shared.css|js` استفاده می‌کند، نه مستقل.
+`assets/shared.js` enthält, was alle angemeldeten Seiten brauchen: Anmeldung
+und `api()`, `escapeHtml`, die Seitenleiste, den Aktionsverteiler, den
+Bestandsschreiber und den Export. Gestaltung in `assets/shared.css`.
 
----
+## Regeln für neuen Code
 
-## چی عوض شده؟ (دور قبلی)
+Jede dieser Regeln hat einen Grund in `../ENTSCHEIDUNGEN.md` — und einen Test,
+der sie erzwingt.
 
-| فایل | وضعیت |
-|---|---|
-| `index.html` | **دست‌نخورده** — طبق خواسته‌تان، اصلاً عوض نشد. از نسخه‌ی قبلی خودتان استفاده کنید. |
-| `dashboard.html` | بازنویسی کامل |
-| `analytics.html` | بازنویسی کامل — حالا اسمش در منو «Analyse & Berichte» است (همان فایل، ادغام‌شده با Snapshot) |
-| `reports.html` | بازنویسی — endpoint اشتباه درست شد، ستون‌های کمبود/Status حذف شدند |
-| `users.html` | فقط لینک‌های ناوبری مرده اصلاح شدند (سفارش‌ها، Tages-Snapshot قدیمی) + تابع ارسال گزارش به endpoint جدید وصل شد. بقیه‌اش دقیقاً همان چیزی است که داشتید. |
-| `orders.html` | **حذف شد** — این فایل را از پوشه‌ی frontend خودتان پاک کنید |
-| `assets/shared.css` | گسترش‌یافته — کلاس‌های جدید برای نمودار، لیست پرمصرف‌ترین‌ها، برچسب‌های واریانت |
-| `assets/shared.js` | بازنویسی — حذف Orders/order-badge، اتصال به send-now، توابع دسته‌بندی/واحد داینامیک |
-| `shared.css` / `shared.js` (در ریشه‌ی frontend، نه در assets/) | **این دو فایل را پاک کنید.** نسخه‌ی تکراری بودند؛ همه‌چیز الان فقط در `assets/` است. |
+**1. Kein JavaScript im HTML.** Kein `<script>` ohne `src`, kein `onclick="…"`,
+keine `javascript:`-Adresse. Die CSP führt nichts davon aus.
+Tests: `frontend-struktur`, `inline-handler`, `csp-markup`, `csp-skripte`.
 
-## نکته‌ی مهم درباره‌ی ساختار
+**2. Knöpfe über `data-action`.**
 
-قبلاً فقط `dashboard.html` از `assets/shared.css|js` استفاده می‌کرد و بقیه‌ی صفحات (index, reports, analytics, users) هرکدام نسخه‌ی کامل و تکراری CSS/JS را داخل خودشان داشتند. الان **همه‌چیز فقط در `assets/`** است (به‌جز `users.html` که عمداً مستقل نگه داشته شد چون از قبل کار می‌کرد و شما گفتید دست نخورد).
+```html
+<button type="button" data-action="produktLoeschen" data-id="${escapeHtml(p._id)}">🗑️</button>
+```
 
-## چرا Tagesberichte (`reports.html`) جدا از Analyse & Berichte (`analytics.html`) ماند؟
+```js
+registriereAktionen({
+  produktLoeschen: (el) => confirmDeleteProduct(el.dataset.id)
+});
+```
 
-شما فقط خواستید Analytics و Tages-Snapshot ادغام شوند. این دو نقش متفاوت دارند و هیچ‌کدام را حذف نکردم:
+Ein einziger Listener am Dokument (in `shared.js`) ruft die registrierte
+Funktion — auch für Zeilen, die erst später gerendert werden. Ein Name ohne
+Registrierung erscheint in der Konsole als `[Aktionen] unbekannte Aktion`.
+Test: `aktionen`.
 
-- **`analytics.html` (Analyse & Berichte):** «امروز چی شده؟» — گزارش‌های امروز + ارسال گزارش جدید + روند ۷ تا ۹۰ روز اخیر + پرمصرف‌ترین‌ها
-- **`reports.html` (Tagesberichte):** «آرشیو کامل» — مرور هر روزی که می‌خواهید (تا یک سال)، جزئیات هر روز، و ابزارهای ادمین (حذف لاگ، بستن دستی روز)
+**3. Alles aus Daten durch `escapeHtml(...)`** — auch Zahlen und ids. Ohne
+Maskierung erlaubt sind nur fester Text, Zahlen aus Rechnungen und die
+Formatierer `fmtNum`, `fmtDate`, `fmtTime`, `fmtRelative`, `fmtDateOnly`.
+Tests: `frontend-escaping`, `html-senken` — er verfolgt jeden Wert bis in
+`innerHTML`.
 
-اگر ترجیح می‌دهید این دو هم ادغام شوند یا یکی حذف شود، بگویید تا اصلاح کنم.
+**4. Bestand nur über den Bestandsschreiber** (`setStock`, `adjustStock` in
+`dashboard.js`): Anzeige sofort, gebündeltes Speichern, Version mitschicken.
+Test: `stock-writer`.
 
-## باگ مهمی که در همین مرحله پیدا و رفع شد
-
-تابع `sendReportNow()` در ابتدا یک باگ منطقی داشت: وقتی بک‌اند کد ۲۰۷ (موفقیت جزئی — یعنی گزارش ذخیره شد ولی ارسال تلگرام شکست خورد) برمی‌گرداند، چون ۲۰۷ در محدوده‌ی «موفق» HTTP قرار دارد، تابع `api()` آن را به‌عنوان خطا تشخیص نمی‌داد و کد catch هیچ‌وقت اجرا نمی‌شد. الان این حالت در مسیر موفق چک می‌شود، نه در catch.
-
-## تست‌هایی که انجام شد
-
-- Syntax-check تمام تگ‌های `<script>` با Node (استخراج و `node --check`)
-- بررسی خودکار: همه‌ی `onclick`/`onchange`/... به یک تابع واقعی اشاره می‌کنند؛ همه‌ی `getElementById` با یک `id=` واقعی مطابقت دارند؛ تگ‌های HTML متوازن‌اند
-- یک سرور Express واقعی (بدون MongoDB) بالا آورده شد و هر صفحه + `assets/shared.css` + `assets/shared.js` واقعاً با کد ۲۰۰ سرو شدند
-
-⚠️ چیزی که تست **نشد**: تعامل واقعی صفحات با بک‌اند روی یک MongoDB واقعی (چون اینجا MongoDB در دسترس نبود). بعد از بالا آوردن بک‌اند، لطفاً مسیرهای اصلی (افزودن محصول، تغییر موجودی، ارسال گزارش، خروجی اکسل/پی‌دی‌اف) را خودتان امتحان کنید.
-
-### تست‌های اضافه‌ی این دور (jsdom)
-
-برای دو باگ اصلی (`.id`/`._id` در users.html و XSS دسته‌بندی در dashboard.html) یک
-مرورگر شبیه‌سازی‌شده (jsdom) با یک بک‌اند جعلی راه‌اندازی شد تا واقعاً رفتار
-واقعی را بسنجد، نه فقط خواندن کد:
-- `users.html` با ۲ کاربر جعلی لود شد؛ تأیید شد که جدول درست رندر می‌شود، دکمه‌ی
-  ویرایش مودال را با مقادیر درست باز می‌کند، فیلد نقش هنگام ویرایش خودِ ادمین
-  غیرفعال می‌شود، و یک نام/IP حاوی `<img onerror=...>` در HTML خروجی escape شده
-  ظاهر می‌شود (نه به‌صورت تگ زنده).
-- `dashboard.html` با یک نام دسته‌بندی مخرب (`Obst');window.__xss=true;//`) لود
-  شد؛ تأیید شد که هیچ `onclick` ای در HTML خروجی نیست، کلیک روی تب هیچ کدی را
-  اجرا نمی‌کند، و فیلتر کردن محصولات هنوز درست کار می‌کند.
-- هر دو تست صفر خطای JS در کنسول گزارش دادند.
-
-## نصب
-
-فقط فایل‌های این پوشه را در `frontend/` پروژه‌ی خودتان کپی کنید (همه‌ی فایل‌ها، از جمله `index.html` و `users.html` — هر دو در این دور اصلاح شدند، دیگر نسخه‌ی قدیمی را نگه ندارید). اگر هنوز `orders.html` یا `shared.css`/`shared.js` در ریشه‌ی `frontend/` (نه در `assets/`) دارید، آن‌ها را پاک کنید. هیچ build step یا npm install ای برای فرانت‌اند لازم نیست — همان HTML/CSS/JS خام است.
+**5. Schließen-Knöpfe von Dialogen** als
+`<button type="button" aria-label="Schließen">` — mit der Tastatur erreichbar
+und vorlesbar. Test: `schliessen-knoepfe`.

@@ -1,120 +1,122 @@
-# EDEKA Lager — Backend (بازنویسی شده)
+# EDEKA Lagerverwaltung — Backend
 
-## 🆕 این بخش مربوط به آخرین بررسی است (رفع باگ + امنیت)
+Node.js mit Express 5 und MongoDB (Mongoose). Liefert die API unter `/api` und
+die Oberfläche aus `../frontend` aus.
 
-یک بررسی کامل امنیتی/کیفی روی کل پروژه (بک‌اند + فرانت‌اند) انجام شد. مهم‌ترین
-چیزهایی که در **این دور** در بک‌اند اصلاح شدند:
+- Betrieb auf dem Server: [`../BETRIEB.md`](../BETRIEB.md)
+- Warum es so gebaut ist: [`../ENTSCHEIDUNGEN.md`](../ENTSCHEIDUNGEN.md)
+- Tests im Einzelnen: [`test/README.md`](test/README.md)
 
-| فایل | چه چیزی اصلاح شد |
-|---|---|
-| `.env` | ⚠️ شامل یک JWT_SECRET و Telegram Bot Token **واقعی** بود که با آپلود پروژه افشا شدند. مقادیر با placeholder جایگزین شدند — **این دو مقدار را همین حالا rotate کنید** (توضیح کامل در بالای خود فایل `.env`). |
-| `.gitignore` | قبلاً اصلاً وجود نداشت (به همین دلیل احتمالاً `.env` واقعی وارد این پروژه/زیپ شده بود) |
-| `routes/auth.js` | روی `/login` هیچ rate limit ای نبود (brute-force ممکن بود) — درحالی‌که فرانت‌اند از قبل منتظر پاسخ ۴۲۹ بود! اضافه شد. IP لاگین دیگر مستقیم از هدر قابل‌جعل `X-Forwarded-For` خوانده نمی‌شود. |
-| `routes/products.js` | اعتبارسنجی `PATCH /:id/stock` سفت‌تر شد (مقدار NaN/غیرعددی قبلاً رد نمی‌شد) |
-| `routes/users.js` | یک ادمین دیگر نمی‌تواند نقش خودش را از admin عوض کند (جلوگیری از قفل‌شدن تصادفی) |
-| `models/User.js` / `Product.js` / `Category.js` / `Unit.js` | `maxlength` روی فیلدهای متنی اضافه شد (سخت‌گیری بیشتر) |
-| `services/telegram.js` | نام محصول/دسته/واحد قبل از ارسال به تلگرام escape می‌شوند — قبلاً یک اسم حاوی `_ * \` [` کل ارسال گزارش را با خطای تلگرام خراب می‌کرد |
-| `server.js` | CSP سفت‌تر شد، `credentials:true` نامناسب از CORS حذف شد، error handler مرکزی هوشمندتر شد (400/409/500 درست به‌جای 500 عمومی برای همه) |
-| همه‌ی `routes/*.js` | بلوک‌های تکراری `try/catch → res.status(500)` حذف شدند (Express 5 خودش خطای async را می‌گیرد) — هم کد تمیزتر شد هم در production جزئیات داخلی خطا دیگر لو نمی‌رود |
+## Entwicklung
 
-جزئیات کامل (چرا هرکدام باگ بودند، چطور تست شدند) در پاسخ چت آمده.
-
-### تصحیح یک ادعای نسخه‌ی قبلی این فایل
-لیست «بدون تغییر» زیر دیگر دقیق نیست — `models/User.js`، `routes/auth.js` و
-`routes/users.js` در همین دور اصلاح شدند (جدول بالا). `middleware/auth.js` و
-`createAdmin.js` واقعاً بدون تغییرند.
-
----
-
-این پوشه جایگزین `backend/` پروژه‌ی فعلی شما می‌شود. همه‌چیز اینجا فارسی توضیح داده شده تا بدونی دقیقاً چی عوض شده.
-
-## ۱) چی جدید/عوض شده؟
-
-| فایل | وضعیت |
-|---|---|
-| `models/Product.js` | بازنویسی — `minStock` و `isLoose` حذف شدند؛ یکتایی روی `name+isBio+unit` |
-| `models/DailyLog.js` | بازنویسی — چند گزارش در روز مجاز، فیلد `sentAt` و `type` اضافه شد |
-| `models/Category.js` | **جدید** — دسته‌بندی‌های قابل‌مدیریت (نه enum هاردکد) |
-| `models/Unit.js` | **جدید** — واحدهای قابل‌مدیریت |
-| `routes/products.js` | بازنویسی — اعتبارسنجی دسته/واحد، بدون minStock |
-| `routes/reports.js` | بازنویسی کامل — توضیح در بخش ۳ |
-| `routes/categories.js` | **جدید** — CRUD دسته‌بندی |
-| `routes/units.js` | **جدید** — CRUD واحد |
-| `services/telegram.js` | **جدید** — ارسال تلگرام (از reports.js قبلی استخراج شد) |
-| `services/dailyClose.js` | **جدید** — بستن خودکار روز در نیمه‌شب (Europe/Berlin) |
-| `services/exportBuilder.js` | **جدید** — ساخت Excel/PDF رنگی و دسته‌بندی‌شده |
-| `server.js` | بازنویسی — روت‌های categories/units اضافه شد + زمان‌بند نیمه‌شب |
-| `package.json` | **جدید** — قبلاً اصلاً وجود نداشت! |
-| `.env.example` | **جدید** — قبلاً اصلاً وجود نداشت! |
-| `seed.js` | **جدید** — دسته‌بندی‌ها و واحدهای پیش‌فرض را می‌سازد |
-
-### بدون تغییر (دقیقاً همونیه که داشتی، فقط کپی شده)
-`middleware/auth.js` · `createAdmin.js` · `seed.js` · `models/DailyLog.js` · `services/dailyClose.js` · `services/exportBuilder.js`
-(برای تغییرات `models/User.js`، `routes/auth.js`، `routes/users.js` به بخش «آخرین بررسی» در بالای همین فایل نگاه کنید)
-
-### حذف‌شده
-`routes/` دیگر مسیرهای `order-suggestions` و `telegram-order` را ندارد (چون صفحه‌ی سفارش‌ها حذف شد). مسیر `/api/reports/daily` هم حذف شد چون هیچ صفحه‌ای آن را صدا نمی‌زد (مرده بود).
-
-## ۲) باگ‌هایی که در همین بازنویسی رفع شدند
-
-اینها در نسخه‌ی قبلی شما واقعاً خراب بودند (فرانت‌اند مسیر اشتباهی صدا می‌زد):
-- دکمه‌ی Snapshot در داشبورد → مسیر ناموجود `/api/products/snapshot`
-- صفحه‌ی Tagesberichte → مسیر ناموجود `/api/reports/daily-log`
-- صفحه‌ی Analytics → مسیر اشتباه `/api/history`
-
-این صفحات در بازنویسی فرانت‌اند (پیام بعدی) با مسیرهای درست جدید بازنویسی می‌شوند.
-
-## ۳) منطق جدید گزارش‌گیری (`routes/reports.js`)
-
-- **`POST /api/reports/send-now`** — هر وقت دکمه‌ی «ارسال گزارش» را بزنید: یک snapshot از وضعیت لحظه‌ای می‌سازد، به تلگرام می‌فرستد، و آن را با یک تایم‌استمپ دقیق ذخیره می‌کند. می‌توانید این کار را چندبار در روز انجام دهید. `yesterdayStock` را تغییر نمی‌دهد.
-- **نیمه‌شب (خودکار، بدون هیچ کلیکی)** — `services/dailyClose.js` با `node-cron` هر شب ساعت ۰۰:۰۰ به وقت برلین:
-  1. یک snapshot نهایی از همان لحظه می‌سازد و به‌عنوان رکورد رسمی همان روز ذخیره می‌کند (نوع `auto-midnight`).
-  2. `yesterdayStock` همه‌ی محصولات را برابر `currentStock` همان لحظه می‌کند — این پایه‌ی محاسبه‌ی «مصرف» برای روز بعد است.
-  3. هیچ پیام تلگرامی نمی‌فرستد — فقط ثبت داخلی.
-- **`GET /api/reports/today`** — لیست همه‌ی گزارش‌های دستی امروز (برای تب «امروز» در صفحه‌ی Analyse).
-- **`GET /api/reports/analytics?days=14`** — روند مصرف روزانه + پرمصرف‌ترین محصولات، برای نمودارها.
-- **`GET /api/reports/history?limit=30`** — یک ردیف به ازای هر روز، برای صفحه‌ی تاریخچه.
-- **`GET /api/reports/export?type=excel|pdf`** — خروجی از وضعیت زنده؛ با `&date=YYYY-MM-DD` یا `&logId=...` از یک گزارش مشخص.
-- **`POST /api/reports/close-day`** *(فقط ادمین)* — همون کاری که نیمه‌شب خودکار انجام می‌شود، ولی دستی — برای تست یا اگر سرور سر ساعت ۰۰:۰۰ خاموش بود.
-
-⚠️ نکته‌ی مهم درباره‌ی محاسبه‌ی مصرف: چون هر گزارش، مصرف *تجمعی از نیمه‌شب* را نشان می‌دهد (نه نسبت به گزارش قبلیِ همان روز)، در نمودارها و تاریخچه هیچ‌وقت نباید چند گزارش یک روز را با هم جمع زد — کد همیشه فقط یک «رکورد نمایندهٔ» هر روز را انتخاب می‌کند (ترجیحاً `auto-midnight`).
-
-## ۴) راه‌اندازی
+Voraussetzungen: Node.js 20.19 oder neuer (CI prüft mit 22) und eine MongoDB.
+Lokal am einfachsten mit Docker:
 
 ```bash
-cd backend
-npm install
-cp .env.example .env
-# .env را با مقادیر واقعی پر کن (پایین توضیح داده شده)
-
-npm run seed           # دسته‌بندی‌ها و واحدهای پیش‌فرض را می‌سازد
-npm run create-admin    # اولین کاربر ادمین را می‌سازد (مثل قبل)
-npm run dev             # یا: npm start
+docker run -d --name edeka-mongo-dev -p 127.0.0.1:27017:27017 mongo:7
 ```
 
-### متغیرهای `.env`
+Dann:
 
-| متغیر | توضیح |
+```bash
+cd Edeka.lager/backend
+npm ci
+cp .env.example .env      # ausfüllen, siehe unten — mindestens JWT_SECRET
+npm run seed              # Standard-Kategorien und -Einheiten
+npm run create-admin      # erster Admin: node createAdmin.js <name> <passwort>
+npm run dev               # mit automatischem Neustart; ohne: npm start
+```
+
+Die Oberfläche ist danach unter `http://127.0.0.1:3000` erreichbar.
+
+## Prüfen
+
+```bash
+npm run test:unit          # ohne Datenbank
+npm run test:integration   # braucht MongoDB; jede Testdatei bekommt eine eigene Datenbank
+npm run lint               # ESLint über Backend und Frontend
+npm test                   # alles
+```
+
+Dieselben Prüfungen laufen bei jedem Push in GitHub Actions.
+
+## Aufbau
+
+| Ort | Inhalt |
 |---|---|
-| `MONGODB_URI` | آدرس اتصال MongoDB |
-| `JWT_SECRET` | یک رشته‌ی تصادفی طولانی برای امضای توکن ورود |
-| `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` | همون ربات/کانال فعلی‌تان — چیزی عوض نشده |
-| `DOMAIN` | آدرس دامنه‌ی سایت، برای CORS |
-| `PORT` | پیش‌فرض `3000` |
+| `server.js` | Start: Pflichtprüfungen (`JWT_SECRET`, `TRUST_PROXY`), Datenbank, Lauschen, Tagesabschluss |
+| `app.js` | die Express-App: Sicherheits-Header und CSP, CORS, Routen, Fehlerbehandlung |
+| `routes/` | die API, je Bereich eine Datei |
+| `models/` | Mongoose-Schemata |
+| `services/` | `dailyClose.js` (Tagesabschluss), `exportBuilder.js` (Excel/PDF), `telegram.js` |
+| `middleware/auth.js` | prüft den Anmelde-Token und lädt den Benutzer aus der Datenbank |
+| `lib/` | Eingabeprüfung, Anmeldegrenzen, Fehlerbehandlung |
+| `createAdmin.js`, `seed.js` | Einrichtung: erster Admin, Standarddaten |
 
-### چیزی که فراموش نکنی
+## Einstellungen (`.env`)
 
-دیتابیس از صفر شروع می‌شود (طبق تاییدت). یعنی محصولات قبلی‌تان از بین رفته — باید دوباره از داشبورد جدید اضافه‌شان کنید (با همان فرم جدید که دسته‌بندی/واحد/Bio را می‌پرسد).
+Vorlage: `.env.example`. Die echte `.env` kommt nie ins Repository.
 
-## ۵) چیزی که داینامیک شده
+| Name | Standard | Bedeutung |
+|---|---|---|
+| `PORT` | `3000` | Port der App |
+| `HOST` | `127.0.0.1` | Adresse, auf der die App lauscht. `0.0.0.0` nur bewusst und nie zusammen mit `TRUST_PROXY=true` — das verweigert den Start |
+| `NODE_ENV` | `development` | auf dem Server `production` (setzt der Dienst): Fehlermeldungen an den Browser bleiben allgemein |
+| `CORS_ORIGINS` | leer | fremde Origins, kommagetrennt, die die API aus dem Browser lesen dürfen. Leer lassen, solange es kein fremdes Frontend gibt |
+| `TRUST_PROXY` | `false` | `true` hinter einem Proxy auf derselben Maschine (nginx): die App sieht dann die echte Adresse der Nutzer |
+| `LOGIN_IP_LIMIT` | `100` | Decke für Anmeldeversuche je Adresse in 15 Minuten; die Grenze je Benutzername (10) gilt getrennt |
+| `MONGODB_URI` | — | **Pflicht.** Verbindung zur Datenbank |
+| `JWT_SECRET` | — | **Pflicht**, lang und zufällig — sonst startet der Server nicht. Erzeugen: `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"` |
+| `JWT_EXPIRES_IN` | `7d` | wie lange eine Anmeldung gilt |
+| `TELEGRAM_BOT_TOKEN` | leer | optional: Bot für den Tagesbericht |
+| `TELEGRAM_CHAT_ID` | leer | optional: Kanal, Gruppe oder Chat für den Tagesbericht |
+| `ADMIN_PASSWORD` | leer | nur für `npm run create-admin` ohne Passwort-Argument; leer bricht ab statt ein schwaches Passwort zu setzen |
 
-دسته‌بندی‌ها و واحدها دیگر در کد هاردکد نیستند. `seed.js` این پیش‌فرض‌ها را می‌سازد:
+## API
 
-- **دسته‌بندی‌ها:** Obst, Gemüse, Zitrusfrüchte, Exotisch, Beeren, Kräuter, Pilze, Sonstige
-- **واحدها:** Kiste, kg, g, Stück, Bund, Beutel, Karton, Netz, Sack, Steige
+Außer `/api/health` und `/api/auth/login` verlangen alle Routen eine
+Anmeldung; welche Rolle was darf, prüft die jeweilige Route in `routes/`.
 
-هر دو از فرم افزودن محصول در داشبورد (مرحله‌ی بعد) قابل افزودن هستند — هر وقت محصول جدیدی با دسته/واحد جدید نیاز داشتید، همان لحظه اضافه می‌کنید.
+| Methode | Pfad | Zweck |
+|---|---|---|
+| GET | `/api/health` | Lebenszeichen |
+| POST | `/api/auth/register` | Benutzer anlegen (nur Admin) |
+| POST | `/api/auth/login` | Anmelden |
+| GET | `/api/auth/me` | eigenes Profil |
+| PUT | `/api/auth/change-password` | eigenes Passwort ändern |
+| GET | `/api/categories` | Kategorien |
+| POST | `/api/categories` | Kategorie anlegen |
+| PUT | `/api/categories/:id` | Kategorie ändern |
+| DELETE | `/api/categories/:id` | Kategorie löschen |
+| GET | `/api/units` | Einheiten |
+| POST | `/api/units` | Einheit anlegen |
+| PUT | `/api/units/:id` | Einheit ändern |
+| DELETE | `/api/units/:id` | Einheit löschen |
+| GET | `/api/products` | Produkte |
+| POST | `/api/products` | Produkt anlegen |
+| PUT | `/api/products/:id` | Produkt ändern |
+| PATCH | `/api/products/:id/stock` | Bestand setzen — mit Version, 409 bei fremder Änderung |
+| DELETE | `/api/products/:id` | Produkt löschen |
+| GET | `/api/reports/today` | Berichte von heute |
+| GET | `/api/reports/analytics` | Verlauf für die Diagramme |
+| POST | `/api/reports/send-now` | Bericht jetzt erstellen (und per Telegram senden, falls eingerichtet) |
+| GET | `/api/reports/history` | ein Eintrag je Tag |
+| GET | `/api/reports/export` | Excel oder PDF |
+| POST | `/api/reports/reset-stock` | Bestände zurücksetzen (Werkzeug im Admin-Menü) |
+| POST | `/api/reports/reset-logs` | Berichte löschen (Werkzeug im Admin-Menü) |
+| POST | `/api/reports/close-day` | Tagesabschluss von Hand |
+| GET | `/api/reports/:id` | ein einzelner Bericht |
+| GET | `/api/users` | Benutzer |
+| GET | `/api/users/:id` | ein Benutzer |
+| POST | `/api/users` | Benutzer anlegen |
+| PUT | `/api/users/:id` | Benutzer ändern |
+| PUT | `/api/users/:id/reset-password` | Passwort zurücksetzen |
+| DELETE | `/api/users/:id` | Benutzer löschen |
 
-## ۶) مرحله‌ی بعد
+## Tagesabschluss
 
-فرانت‌اند (داشبورد، صفحه‌ی Analyse & Berichte، حذف صفحه‌ی Orders) از قبل در این پروژه موجود است و در همین دور بررسی/اصلاح هم شد — به `frontend/README.md` نگاه کنید.
+Jede Nacht um 00:00 (Berlin) hält `services/dailyClose.js` den Stand des Tages
+fest und setzt den Vortagesbestand jedes Produkts auf den aktuellen Bestand —
+die Grundlage für den „Verbrauch“ des nächsten Tages. War der Server um
+Mitternacht aus, holt die App den fehlenden Abschluss beim nächsten Start nach;
+ein zweiter Lauf für denselben Tag ändert nichts.

@@ -1,7 +1,7 @@
 # tools/
 
 Die selbstanwendenden Skripte des Projekts, in der Reihenfolge ihrer
-Entstehung — dazu zwei Hilfsskripte, die im Betrieb laufen.
+Entstehung — dazu drei Hilfsskripte, die im Betrieb laufen.
 
 ## Hilfsskripte im Betrieb
 
@@ -9,6 +9,7 @@ Entstehung — dazu zwei Hilfsskripte, die im Betrieb laufen.
 | --- | --- |
 | `sicherung.sh` | nächtliche Sicherung mit Wiederherstellungsprobe (`edeka-sicherung.timer`); Zurückspielen siehe `Edeka.lager/BETRIEB.md` |
 | `duckdns.sh` | hält `<name>.duckdns.org` auf der Adresse des Servers (`edeka-duckdns.timer`) |
+| `extern-sicherung.sh` | verschlüsselte Kopie jeder geprüften Sicherung ins private Sicherungs-Repository (`edeka-extern.service`, nach jeder erfolgreichen Sicherung) |
 
 ## Die Schritte
 
@@ -40,6 +41,7 @@ Entstehung — dazu zwei Hilfsskripte, die im Betrieb laufen.
 | `apply-g1-haertung.sh` | script-src ohne unsafe-inline, echte Schließen-Knöpfe, Löschschutz der Sicherung |
 | `apply-g2-html.sh` | Keine Rohdaten im HTML, Prüfer für alle Senken |
 | `apply-h1-doku.sh` | Betriebshandbuch, Entscheidungen, aktuelle READMEs, Doku-Test |
+| `apply-h3-extern.sh` | Kopie außer Haus: verschlüsselt in ein privates GitHub-Repository |
 
 Sie sind hier als Dokumentation des Wegs abgelegt, nicht zur erneuten
 Ausführung: jedes hat seine Änderungen bereits angewendet und prüft das

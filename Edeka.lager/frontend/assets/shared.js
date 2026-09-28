@@ -516,7 +516,7 @@ function injectSidebar() {
 
     <div class="sidebar-footer">
       <div class="user-card">
-        <div class="user-avatar" id="user-avatar">${(currentUser.name || 'A')[0].toUpperCase()}</div>
+        <div class="user-avatar" id="user-avatar">${escapeHtml((currentUser.name || 'A')[0].toUpperCase())}</div>
         <div class="user-info">
           <div class="user-name" id="user-name-display">${escapeHtml(currentUser.name || 'Administrator')}</div>
           <div class="user-role" id="user-role-display">${escapeHtml(currentUser.role || 'lagerist')}</div>

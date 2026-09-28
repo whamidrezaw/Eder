@@ -64,7 +64,7 @@ function renderKpis() {
     }
     const byUnit = {};
     items.forEach(p => { byUnit[p.unit] = (byUnit[p.unit] || 0) + (p.currentStock || 0); });
-    const breakdown = Object.entries(byUnit).map(([u, v]) => `${fmtNum(v)} ${u}`).join(' · ');
+    const breakdown = Object.entries(byUnit).map(([u, v]) => `${fmtNum(v)} ${escapeHtml(u)}`).join(' · ');
     return `
       <div class="kpi-card">
         <div class="kpi-top"><span class="kpi-label">${escapeHtml(cat.emoji)} ${escapeHtml(cat.name)}</span></div>
@@ -183,7 +183,7 @@ function renderTable() {
     const consumed = Math.max(0, (p.yesterdayStock ?? 0) - (p.currentStock ?? 0));
     const step = categoryStep(p.unit);
     return `
-    <tr data-id="${p._id}">
+    <tr data-id="${escapeHtml(p._id)}">
       <td>
         <div class="product-cell">
           <div class="product-emoji">${escapeHtml(p.emoji || '📦')}</div>
@@ -199,7 +199,7 @@ function renderTable() {
       <td>
         <div class="stepper">
           <button class="step-btn minus" data-action="bestandAendern" data-id="${escapeHtml(p._id)}" data-delta="-${step}">−</button>
-          <input class="step-val" type="number" step="${step}" min="0" value="${p.currentStock}"
+          <input class="step-val" type="number" step="${step}" min="0" value="${escapeHtml(p.currentStock)}"
                  data-bestand-id="${escapeHtml(p._id)}">
           <button class="step-btn plus" data-action="bestandAendern" data-id="${escapeHtml(p._id)}" data-delta="${step}">+</button>
         </div>

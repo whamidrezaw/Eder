@@ -47,7 +47,7 @@ async function loadToday() {
       <div class="report-item">
         <div class="report-time">${fmtTime(r.sentAt)}</div>
         <div class="report-meta">
-          📦 ${fmtNum(r.totalStock)} gesamt · 📉 −${fmtNum(r.totalConsumed)} seit Mitternacht · ${r.productCount} Artikel
+          📦 ${fmtNum(r.totalStock)} gesamt · 📉 −${fmtNum(r.totalConsumed)} seit Mitternacht · ${escapeHtml(r.productCount)} Artikel
           ${r.reportSent ? '' : ' · <span style="color:var(--color-error)">Telegram fehlgeschlagen</span>'}
         </div>
         <div class="report-acts">
@@ -93,7 +93,7 @@ function renderTrendKpis(summary) {
   document.getElementById('trend-kpi-grid').innerHTML = `
     <div class="kpi-card">
       <div class="kpi-top"><span class="kpi-label">Erfasste Tage</span></div>
-      <div class="kpi-val">${summary.totalDays ?? 0}</div>
+      <div class="kpi-val">${escapeHtml(summary.totalDays ?? 0)}</div>
     </div>
     <div class="kpi-card">
       <div class="kpi-top"><span class="kpi-label">Verbrauch gesamt</span></div>

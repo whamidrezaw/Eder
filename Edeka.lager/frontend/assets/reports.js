@@ -49,8 +49,8 @@ function renderHistory() {
       </span></td>
       <td>${fmtNum(row.totalStock)}</td>
       <td>${row.totalConsumed > 0 ? '−' + fmtNum(row.totalConsumed) : '—'}</td>
-      <td>${row.productCount}</td>
-      <td>${row.reportsToday}</td>
+      <td>${escapeHtml(row.productCount)}</td>
+      <td>${escapeHtml(row.reportsToday)}</td>
       <td>
         <div class="row-acts">
           <button class="row-act" title="Details" data-action="berichtOeffnen" data-log-id="${escapeHtml(row._id)}" data-datum="${escapeHtml(row.date)}">👁️</button>

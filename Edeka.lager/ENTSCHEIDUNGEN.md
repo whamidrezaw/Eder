@@ -144,6 +144,23 @@ sie ist — nach dem Austausch steht dort nur ein wertloser Wert. So empfiehlt e
 auch GitHub: erst austauschen, dann bei Bedarf bereinigen.
 **Folgen:** Kein gültiges Geheimnis im Repository. Alte Commits bleiben lesbar.
 
+## 15. Kopie außer Haus: verschlüsselt in ein privates GitHub-Repository (H3)
+
+**Anlass:** Alle Sicherungen lagen auf demselben Server. Mit dem Server — oder
+dem kostenlosen Oracle-Konto — wären sie mit weg gewesen.
+**Entscheidung:** Nach jeder erfolgreichen Sicherung schiebt
+`tools/extern-sicherung.sh` jede noch fehlende geprüfte Sicherung in ein
+privates GitHub-Repository, verschlüsselt mit age und einem öffentlichen
+Schlüssel. Der Server kann verschlüsseln, aber nichts entschlüsseln; der
+private Schlüssel liegt nur beim Betreiber. Zugang über einen Deploy-Key nur
+für dieses Repository, geschoben wird nie mit Gewalt. Verworfen: Oracle Object
+Storage (dasselbe Konto), Google Drive (Token mit weitem Zugriff), der eigene
+Rechner (nicht immer an).
+**Folgen:** Die Daten überleben den Server. Die Sicherungen enthalten
+Personendaten — Namen, Anmeldeprotokolle —, GitHub sieht davon nur
+Chiffretext. Ohne den privaten Schlüssel ist die Kopie wertlos; er muss an zwei
+Orten liegen.
+
 ---
 
 ## Arbeitsweise

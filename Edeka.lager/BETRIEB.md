@@ -33,6 +33,7 @@ Zeitgesteuert:
 |---|---|---|
 | Tagesabschluss | täglich 00:00 (Berlin) | in der App (node-cron); nach einem Ausfall holt die App ihn beim Start nach |
 | Datensicherung mit Wiederherstellungsprobe | täglich 02:30 (Berlin), 14 bleiben | `edeka-sicherung.timer` |
+| Verschlüsselte Kopie außer Haus | nach jeder erfolgreichen Sicherung | `edeka-extern.service` |
 | DuckDNS-Adresse aktuell halten | stündlich | `edeka-duckdns.timer` |
 | Zertifikat verlängern | zweimal täglich, verlängert erst kurz vor Ablauf | `certbot.timer` |
 
@@ -45,6 +46,8 @@ Zeitgesteuert:
 | App-Dienst | `/etc/systemd/system/edeka-lager.service`, dazu `edeka-lager.service.d/10-docker.conf` (startet nach Docker) |
 | Sicherungen | `~/edeka-sicherungen/<Datum_Uhrzeit>/` |
 | Sicherungsdienst | `/etc/systemd/system/edeka-sicherung.service` und `.timer`, Skript `tools/sicherung.sh` |
+| Kopie außer Haus | privates GitHub-Repository `<sicherungs-repo>`, Arbeitskopie `~/edeka-extern`, Skript `tools/extern-sicherung.sh` |
+| Einstellungen der Kopie | `/etc/edeka/extern.env` (Rechte 600): Repository, öffentlicher Schlüssel, Deploy-Key `~/.ssh/edeka_extern_ed25519` |
 | DuckDNS | Name und Token in `/etc/edeka/duckdns.env` (Rechte 600), Skript `tools/duckdns.sh` |
 | nginx | `/etc/nginx/sites-available/edeka-lager` |
 | Zertifikat | `/etc/letsencrypt/live/<name>.duckdns.org/` |
@@ -152,11 +155,42 @@ sudo systemctl start edeka-lager
 In jedem Sicherungsordner steht in `edeka_lager.inhalt`, wie viele Dokumente
 jede Sammlung hatte — zum Vergleich nach dem Zurückspielen.
 
-### Offen: eine Kopie außerhalb des Servers
+### Die Kopie außer Haus
 
-Alle Sicherungen liegen auf **demselben** Server. Fällt er ganz aus, sind sie
-mit weg. Bis das geregelt ist, von Zeit zu Zeit eine Sicherung auf den eigenen
-Rechner holen (PowerShell):
+Nach jeder erfolgreichen Sicherung schiebt `tools/extern-sicherung.sh` jede
+geprüfte Sicherung, die dort noch fehlt, verschlüsselt in ein privates
+GitHub-Repository — verpasste Nächte werden nachgeholt. Verschlüsselt wird mit
+dem **öffentlichen** age-Schlüssel: entschlüsseln kann nur, wer den privaten
+hat. Dieser Server kann es nicht.
+
+```bash
+systemctl show -p Result --value edeka-extern.service
+journalctl -u edeka-extern -n 3 --no-pager
+```
+
+Erwartet: `success`, und im Protokoll `im Repository bestätigt` oder `nichts Neues`.
+
+### Wenn der Server verloren ist
+
+1. Einen neuen Server nach diesem Handbuch einrichten: App und MongoDB-Container.
+2. Das Sicherungs-Repository mit dem **eigenen** GitHub-Zugang holen:
+   `git clone git@github.com:<sicherungs-repo>.git sicherung`
+3. Die Datei mit dem privaten Schlüssel (die Zeile `AGE-SECRET-KEY-…`) kurz auf
+   den Server legen, zum Beispiel als `~/schluessel.txt`, dann entschlüsseln und
+   prüfen:
+
+   ```bash
+   cd sicherung/<Datum_Uhrzeit>
+   age -d -i ~/schluessel.txt -o edeka_lager.archive.gz edeka_lager.archive.gz.age
+   sha256sum -c edeka_lager.sha256
+   ```
+
+   Erwartet: `edeka_lager.archive.gz: OK`.
+4. Zurückspielen wie oben unter „Zurückspielen“ — mit dieser Datei.
+5. Den privaten Schlüssel wieder vom Server löschen: `shred -u ~/schluessel.txt`
+
+Zusätzlich lässt sich jederzeit von Hand eine Sicherung auf den eigenen Rechner
+holen (PowerShell):
 
 ```powershell
 scp -r -i "$HOME\.ssh\oracle_private.key" ubuntu@<server>:~/edeka-sicherungen/<Datum_Uhrzeit> .
@@ -245,6 +279,17 @@ df -h ~
 Häufige Gründe: der Container läuft nicht, die Platte ist voll, oder der
 Wächter in `sicherung.sh` hat einen unsicheren Zielordner abgelehnt.
 
+### Die Kopie außer Haus ist fehlgeschlagen
+
+```bash
+journalctl -u edeka-extern -n 20 --no-pager
+```
+
+Häufige Gründe: keine Verbindung zu GitHub; der Deploy-Key wurde entfernt oder
+hat kein Schreibrecht mehr; das Repository wurde umbenannt. Danach
+`bash tools/apply-h3-extern.sh` erneut — es prüft alles und übernimmt, was
+schon stimmt. Die lokale Sicherung ist davon nicht betroffen.
+
 ### Nach einem Kernel-Update kommt der Server nicht hoch
 
 Oracle-Konsole → Compute → Instances → die Instanz → „Console connection“ oder
@@ -268,6 +313,14 @@ neu an.
   `ssh-keygen -p -f "$HOME\.ssh\oracle_private.key"`
 - **Passwörter:** Die App verlangt mindestens 6 Zeichen. Für Admin-Konten
   deutlich längere wählen.
+- **Der private age-Schlüssel** (`AGE-SECRET-KEY-…`) liegt nur beim Betreiber,
+  an zwei Orten — etwa im Passwortmanager und offline auf einem USB-Stick oder
+  auf Papier. Ohne ihn ist die Kopie außer Haus wertlos, und niemand kann ihn
+  wiederherstellen.
+- **Der Deploy-Key** dieses Servers darf nur ins Sicherungs-Repository
+  schreiben. Wer den Server übernimmt, könnte dort aber auch löschen. Mit
+  GitHub Pro — für Studierende im GitHub Student Developer Pack enthalten —
+  lässt sich `main` dieses Repositorys gegen Force-Push und Löschen schützen.
 
 ### Schlüssel austauschen (JWT_SECRET)
 

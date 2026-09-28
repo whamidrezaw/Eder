@@ -1,3 +1,18 @@
 
 # Sicherungskopien der Fix-Skripte
 *.bak
+
+# ── Nie wieder im Repo: Archive und echte Umgebungsdateien (Phase S1) ──
+# Ein ZIP mit einer .env darin war vom 06.07. bis 28.09.2026 öffentlich.
+*.zip
+*.tar
+*.tgz
+*.gz
+*.bz2
+*.xz
+*.7z
+*.rar
+.env
+.env.*
+!.env.example
+!.env.*.example

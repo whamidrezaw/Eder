@@ -34,6 +34,8 @@ Zeitgesteuert:
 | Tagesabschluss | täglich 00:00 (Berlin) | in der App (node-cron); nach einem Ausfall holt die App ihn beim Start nach |
 | Datensicherung mit Wiederherstellungsprobe | täglich 02:30 (Berlin), 14 bleiben | `edeka-sicherung.timer` |
 | Verschlüsselte Kopie außer Haus | nach jeder erfolgreichen Sicherung | `edeka-extern.service` |
+| Lebenszeichen der App über die öffentliche Adresse | alle 5 Minuten | `edeka-herzschlag.timer` |
+| Restlaufzeit des Zertifikats | täglich 09:00 (Berlin) | `edeka-zertifikat.timer` |
 | DuckDNS-Adresse aktuell halten | stündlich | `edeka-duckdns.timer` |
 | Zertifikat verlängern | zweimal täglich, verlängert erst kurz vor Ablauf | `certbot.timer` |
 
@@ -48,6 +50,7 @@ Zeitgesteuert:
 | Sicherungsdienst | `/etc/systemd/system/edeka-sicherung.service` und `.timer`, Skript `tools/sicherung.sh` |
 | Kopie außer Haus | privates GitHub-Repository `<sicherungs-repo>`, Arbeitskopie `~/edeka-extern`, Skript `tools/extern-sicherung.sh` |
 | Einstellungen der Kopie | `/etc/edeka/extern.env` (Rechte 600): Repository, öffentlicher Schlüssel, Deploy-Key `~/.ssh/edeka_extern_ed25519` |
+| Überwachung | Healthchecks.io, vier Prüfungen; Ping-Adressen in `/etc/edeka/alarm.env` (Rechte 640, root:ubuntu); Skript `tools/alarm.sh` |
 | DuckDNS | Name und Token in `/etc/edeka/duckdns.env` (Rechte 600), Skript `tools/duckdns.sh` |
 | nginx | `/etc/nginx/sites-available/edeka-lager` |
 | Zertifikat | `/etc/letsencrypt/live/<name>.duckdns.org/` |
@@ -64,6 +67,33 @@ curl -s http://127.0.0.1:3000/api/health; echo
 Erwartet: dreimal `active`, `edeka-mongo  Up …` und `"status":"ok"`.
 Von außen: `https://<name>.duckdns.org` im Browser, Schloss neben der Adresse — am
 besten auf dem Handy über mobile Daten, dann kommt die Anfrage wirklich von außen.
+
+## Überwachung und Alarme
+
+Healthchecks.io erwartet vier Lebenszeichen von diesem Server. Bleibt eines aus
+— auch weil der Server ganz ausgefallen ist — oder meldet der Server einen
+Fehler, schickt Healthchecks.io eine Nachricht: per E-Mail und, wenn dort
+eingerichtet, per Telegram. Auf diesem Server liegt dafür kein Bot-Token.
+
+| Prüfung | erwartet | bei Alarm zuerst |
+|---|---|---|
+| `edeka-sicherung` | täglich nach 02:30 (Berlin), spätestens 1 Stunde später | „Die Sicherung ist fehlgeschlagen“ |
+| `edeka-extern` | nach jeder Sicherung, spätestens 2 Stunden später | „Die Kopie außer Haus ist fehlgeschlagen“ |
+| `edeka-app` | alle 5 Minuten über die **öffentliche** Adresse, spätestens 10 Minuten später | „Die App antwortet nicht“ |
+| `edeka-zertifikat` | täglich 09:00, mindestens 14 Tage Restlaufzeit | `sudo certbot renew --dry-run` |
+
+Die Meldungen der Sicherungsdienste enthalten ihre letzten Protokollzeilen.
+Vom Protokoll der App verlässt nichts den Server — die Meldung nennt nur den
+Befehl, mit dem man auf dem Server nachsieht.
+
+Probealarm — kommt die Nachricht an?
+
+```bash
+bash ~/Eder/tools/alarm.sh probe
+```
+
+Die Entwarnung folgt mit dem nächsten Herzschlag, spätestens nach 5 Minuten —
+sofort mit `sudo systemctl start edeka-herzschlag.service`.
 
 ## Protokolle
 
@@ -321,6 +351,9 @@ neu an.
   schreiben. Wer den Server übernimmt, könnte dort aber auch löschen. Mit
   GitHub Pro — für Studierende im GitHub Student Developer Pack enthalten —
   lässt sich `main` dieses Repositorys gegen Force-Push und Löschen schützen.
+- **Die Ping-Adressen** in `/etc/edeka/alarm.env` sind Geheimnisse: Wer sie
+  kennt, kann falsche Entwarnungen schicken. Sie kommen nie ins Repository. Die
+  Prüfungen nehmen nur POST an — ein bloß aufgerufener Link zählt nicht.
 
 ### Schlüssel austauschen (JWT_SECRET)
 

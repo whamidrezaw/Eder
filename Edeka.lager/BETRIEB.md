@@ -3,7 +3,8 @@
 Alles, was man für den Betrieb auf dem Server braucht: nachsehen, neu starten,
 aktualisieren, sichern, zurückspielen — und was zu tun ist, wenn etwas
 ausfällt. Für die Entwicklung siehe `backend/README.md`, für die Gründe hinter
-den Entscheidungen `ENTSCHEIDUNGEN.md`.
+den Entscheidungen `ENTSCHEIDUNGEN.md`, für die Arbeit im Laden
+`KURZANLEITUNG.md`.
 
 > **Dieses Repository ist öffentlich.** Hier stehen keine Geheimnisse, keine
 > Server-Adresse und kein DuckDNS-Name — nur Platzhalter: `<server>` und

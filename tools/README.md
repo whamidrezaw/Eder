@@ -46,6 +46,7 @@ Entstehung — dazu die Hilfsskripte für den Betrieb.
 | `apply-h3-extern.sh` | Kopie außer Haus: verschlüsselt in ein privates GitHub-Repository |
 | `apply-h2-alarm.sh` | Überwachung von außen: Healthchecks.io als Totmannschalter |
 | `apply-h4-abschluss.sh` | Aufräumen, Systemupdates, Endabnahme |
+| `apply-i1-abschluss.sh` | Bericht ohne Telegram-Warnung, Kurzanleitung, Startseite des Repositorys |
 
 Sie sind hier als Dokumentation des Wegs abgelegt, nicht zur erneuten
 Ausführung: jedes hat seine Änderungen bereits angewendet und prüft das

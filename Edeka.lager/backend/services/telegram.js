@@ -84,4 +84,10 @@ function buildTelegramText(products) {
   return lines.join('\n');
 }
 
-module.exports = { sendTelegram, buildTelegramText, escapeMarkdown };
+// Eingerichtet heißt: Bot-Token UND Standard-Chat sind gesetzt. Ohne beides ist
+// Telegram absichtlich aus — das ist kein Fehler.
+function telegramEingerichtet() {
+  return Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID);
+}
+
+module.exports = { sendTelegram, buildTelegramText, escapeMarkdown, telegramEingerichtet };

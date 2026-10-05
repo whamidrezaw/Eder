@@ -178,11 +178,14 @@ window.animVal = animVal;
 // 8. report_sending
 // جایگزین sendTelegramReport قدیمی — الان snapshot هم ذخیره می‌کند، نه فقط ارسال تلگرام
 async function sendReportNow() {
-  showToast('📤 Bericht wird erstellt und gesendet...', 'info');
+  showToast('📤 Bericht wird erstellt …', 'info');
   try {
     const result = await api('/api/reports/send-now', 'POST');
     if (result.telegramError) {
       showToast('⚠️ Bericht gespeichert, Telegram-Versand fehlgeschlagen: ' + result.telegramError, 'err');
+    } else if (result.telegram === 'aus') {
+      // Telegram ist nicht eingerichtet — gespeichert, aber nichts gesendet.
+      showToast('✅ Bericht gespeichert!', 'ok');
     } else {
       showToast('✅ Bericht gesendet und gespeichert!', 'ok');
     }

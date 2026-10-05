@@ -188,6 +188,18 @@ mit frischer Sicherung, zuerst an einer Kopie erprobt, mit `abnahme.sh` danach.
 **Folgen:** Eine ruhige Grundlage für den Laden; der Wechsel ist eine eigene
 Aufgabe, spätestens 2029.
 
+## 18. Telegram ist eine Zugabe, kein Muss (I)
+
+**Anlass:** Telegram ist auf dem Server absichtlich nicht eingerichtet. Trotzdem
+bekam jeder, der „Bericht senden“ drückte, eine rote Meldung mit den Namen von
+`.env`-Variablen — jedes Mal. Wer täglich rote Meldungen sieht, übersieht bald
+auch die echten.
+**Entscheidung:** Nicht eingerichtet ist kein Fehler: Der Bericht wird
+gespeichert, ohne Versuch und ohne Warnung (`telegram: "aus"`). Nur ein
+gescheiterter Versand bei eingerichtetem Telegram bleibt eine Warnung (207).
+**Folgen:** Rot heißt wieder „hier stimmt etwas nicht“. Wer Telegram später
+will, trägt Bot-Token und Chat in die `.env` ein — ohne Codeänderung.
+
 ---
 
 ## Arbeitsweise

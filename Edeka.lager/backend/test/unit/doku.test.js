@@ -23,10 +23,12 @@ const lies   = (rel) => fs.readFileSync(path.join(WURZEL, rel), 'utf8');
 const DOKS = [
   'Edeka.lager/BETRIEB.md', 'Edeka.lager/ENTSCHEIDUNGEN.md',
   'Edeka.lager/backend/README.md', 'Edeka.lager/frontend/README.md',
-  'Edeka.lager/backend/test/README.md', 'tools/README.md'
+  'Edeka.lager/backend/test/README.md', 'tools/README.md',
+  'README.md', 'Edeka.lager/KURZANLEITUNG.md'
 ];
 // Kommt mit seinem eigenen Commit; danach existiert es ohnehin.
-const AUSSTEHEND = new Set(['apply-h1-doku.sh', 'apply-h3-extern.sh', 'apply-h2-alarm.sh', 'apply-h4-abschluss.sh']);
+const AUSSTEHEND = new Set(['apply-h1-doku.sh', 'apply-h3-extern.sh', 'apply-h2-alarm.sh', 'apply-h4-abschluss.sh',
+                            'apply-i1-abschluss.sh']);
 
 const unterschied = (a, b) => [...a].filter(x => !b.has(x)).sort();
 

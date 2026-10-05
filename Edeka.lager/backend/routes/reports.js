@@ -4,7 +4,7 @@ const auth      = require('../middleware/auth');
 const Product   = require('../models/Product');
 const DailyLog  = require('../models/DailyLog');
 
-const { sendTelegram, buildTelegramText } = require('../services/telegram');
+const { sendTelegram, buildTelegramText, telegramEingerichtet } = require('../services/telegram');
 const { closeDay, yesterdayInBerlin, berlinDateString } = require('../services/dailyClose');
 const {
   normalizeFromLiveProducts,
@@ -208,15 +208,19 @@ router.post('/send-now', auth, require('../lib/limits').sendNowJeBenutzer, async
     consumed:     Math.max(0, (p.yesterdayStock ?? 0) - (p.currentStock ?? 0))
   }));
 
-  // این try/catch داخلی عمداً نگه داشته شده: خطای ارسال تلگرام نباید مانع
-  // ذخیره‌شدن گزارش شود، پس جدا از بقیه‌ی هندلر مدیریت می‌شود.
+  // Telegram ist optional. Nicht eingerichtet: nur speichern, ohne Versuch und
+  // ohne Warnung. Eingerichtet: senden — ein Fehler dabei darf das Speichern
+  // nicht verhindern und wird als Warnung (207) gemeldet.
   let telegramError = null;
   let reportSent = false;
-  try {
-    await sendTelegram(buildTelegramText(products));
-    reportSent = true;
-  } catch (err) {
-    telegramError = err.message;
+  const telegram = telegramEingerichtet();
+  if (telegram) {
+    try {
+      await sendTelegram(buildTelegramText(products));
+      reportSent = true;
+    } catch (err) {
+      telegramError = err.message;
+    }
   }
 
   const log = await DailyLog.create({
@@ -228,12 +232,16 @@ router.post('/send-now', auth, require('../lib/limits').sendNowJeBenutzer, async
     // Bericht ist trotzdem gespeichert — nur der Telegram-Versand ist fehlgeschlagen
     return res.status(207).json({
       message: '⚠️ Bericht gespeichert, aber Telegram-Versand fehlgeschlagen',
+      telegram: 'fehler',
       telegramError,
       log
     });
   }
+  if (!telegram) {
+    return res.status(201).json({ message: '✅ Bericht gespeichert', telegram: 'aus', log });
+  }
 
-  res.status(201).json({ message: '✅ Bericht gesendet und gespeichert', log });
+  res.status(201).json({ message: '✅ Bericht gesendet und gespeichert', telegram: 'gesendet', log });
 });
 
 // ── GET /api/reports/history?limit=30 ───────────────────────────

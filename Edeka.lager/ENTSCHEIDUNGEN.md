@@ -178,6 +178,16 @@ vom Server (SMTP-Zugang als Geheimnis), ntfy (öffentliche Themen).
 **Folgen:** Stille fällt spätestens nach 15 Minuten auf. Fällt Healthchecks.io
 selbst aus, bleiben Alarme aus — für einen einzelnen Laden hingenommen.
 
+## 17. Bei Ubuntu 24.04 LTS bleiben (H4)
+
+**Anlass:** Der Server meldet eine neue Ubuntu-Version (26.04).
+**Entscheidung:** Kein Wechsel im laufenden Betrieb. 24.04 LTS bekommt
+Sicherheitsupdates bis 2029, und die werden eingespielt. Ein Versionswechsel
+ändert Node, nginx und viele Bibliotheken auf einmal — er kommt nur geplant:
+mit frischer Sicherung, zuerst an einer Kopie erprobt, mit `abnahme.sh` danach.
+**Folgen:** Eine ruhige Grundlage für den Laden; der Wechsel ist eine eigene
+Aufgabe, spätestens 2029.
+
 ---
 
 ## Arbeitsweise

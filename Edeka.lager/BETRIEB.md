@@ -58,6 +58,15 @@ Zeitgesteuert:
 
 ## Läuft alles?
 
+Eine Prüfung über alles — sie liest nur und ändert nichts:
+
+```bash
+bash ~/Eder/tools/abnahme.sh
+```
+
+Jede Zeile ✓ oder ✗; die Summe am Ende sagt, ob alles stimmt. Nach einem
+Neustart zwei Minuten warten, dann kommt der erste Herzschlag. Einzeln:
+
 ```bash
 systemctl is-active docker edeka-lager edeka-sicherung.timer
 sudo docker ps --format '{{.Names}}  {{.Status}}'
@@ -280,6 +289,9 @@ sudo reboot
 
 Danach „Läuft alles?“ prüfen.
 
+Ein Wechsel auf eine neue Ubuntu-Version (`do-release-upgrade`, etwa 26.04)
+gehört **nicht** dazu — siehe `ENTSCHEIDUNGEN.md`, Nr. 17.
+
 ## Wenn etwas nicht geht
 
 ### Die App antwortet nicht
@@ -366,16 +378,12 @@ node -e 'const fs = require("fs"), c = require("crypto"); const t = fs.readFileS
 sudo systemctl restart edeka-lager
 ```
 
-## Aufräumen (fällig ab 04.10.2026)
+## Aufräumen
 
-Nach einer Woche ohne Auffälligkeiten seit dem Umzug der Daten:
-
-```bash
-sudo docker rm edeka-mongo-alt
-sudo docker volume ls
-```
-
-Die alten, namenlosen Volumes (lange Zeichenfolgen) erst ansehen, dann einzeln
-entfernen — nie blind `docker volume prune`. `cloudflared` wird nicht mehr
-gebraucht: `sudo apt remove cloudflared`. Auf GitHub die gemergten
-Branches löschen.
+Einmalig mit `bash tools/apply-h4-abschluss.sh`: der Rückweg vom Umzug der
+Daten (`edeka-mongo-alt` und seine Volumes), zwei verwaiste Volumes mit alten
+MongoDB-Daten, alte Kopien der `.env`, liegengebliebene `*.bak`, `cloudflared`
+und die gemergten Branches auf GitHub. Gelöscht wird nur, was eindeutig zu
+diesem Projekt gehört, nur auf einem System, dessen Abnahme ganz grün ist, und
+erst nach Rückfrage. Nie blind `docker volume prune`: Volumes ohne Container
+können anderen Projekten auf diesem Server gehören.

@@ -1,7 +1,7 @@
 # tools/
 
 Die selbstanwendenden Skripte des Projekts, in der Reihenfolge ihrer
-Entstehung — dazu vier Hilfsskripte, die im Betrieb laufen.
+Entstehung — dazu die Hilfsskripte für den Betrieb.
 
 ## Hilfsskripte im Betrieb
 
@@ -11,6 +11,7 @@ Entstehung — dazu vier Hilfsskripte, die im Betrieb laufen.
 | `duckdns.sh` | hält `<name>.duckdns.org` auf der Adresse des Servers (`edeka-duckdns.timer`) |
 | `extern-sicherung.sh` | verschlüsselte Kopie jeder geprüften Sicherung ins private Sicherungs-Repository (`edeka-extern.service`, nach jeder erfolgreichen Sicherung) |
 | `alarm.sh` | Lebenszeichen und Fehlermeldungen an Healthchecks.io (Herzschlag, Zertifikat, nach Sicherung und Kopie) |
+| `abnahme.sh` | läuft alles? Eine Prüfung über den ganzen Betrieb — liest nur, jede Zeile ✓ oder ✗ |
 
 ## Die Schritte
 
@@ -44,6 +45,7 @@ Entstehung — dazu vier Hilfsskripte, die im Betrieb laufen.
 | `apply-h1-doku.sh` | Betriebshandbuch, Entscheidungen, aktuelle READMEs, Doku-Test |
 | `apply-h3-extern.sh` | Kopie außer Haus: verschlüsselt in ein privates GitHub-Repository |
 | `apply-h2-alarm.sh` | Überwachung von außen: Healthchecks.io als Totmannschalter |
+| `apply-h4-abschluss.sh` | Aufräumen, Systemupdates, Endabnahme |
 
 Sie sind hier als Dokumentation des Wegs abgelegt, nicht zur erneuten
 Ausführung: jedes hat seine Änderungen bereits angewendet und prüft das

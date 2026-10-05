@@ -26,7 +26,7 @@ const DOKS = [
   'Edeka.lager/backend/test/README.md', 'tools/README.md'
 ];
 // Kommt mit seinem eigenen Commit; danach existiert es ohnehin.
-const AUSSTEHEND = new Set(['apply-h1-doku.sh', 'apply-h3-extern.sh']);
+const AUSSTEHEND = new Set(['apply-h1-doku.sh', 'apply-h3-extern.sh', 'apply-h2-alarm.sh']);
 
 const unterschied = (a, b) => [...a].filter(x => !b.has(x)).sort();
 

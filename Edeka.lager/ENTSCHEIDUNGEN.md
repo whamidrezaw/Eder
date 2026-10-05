@@ -161,6 +161,23 @@ Personendaten — Namen, Anmeldeprotokolle —, GitHub sieht davon nur
 Chiffretext. Ohne den privaten Schlüssel ist die Kopie wertlos; er muss an zwei
 Orten liegen.
 
+## 16. Überwachung von außen: Healthchecks.io als Totmannschalter (H2)
+
+**Anlass:** Ein ausgefallener Server kann nicht melden, dass er ausgefallen
+ist. Bis hierher hätte niemand eine gescheiterte Sicherung, eine stehende App
+oder ein ablaufendes Zertifikat bemerkt.
+**Entscheidung:** Der Server schickt Lebenszeichen an Healthchecks.io: nach
+jeder Sicherung, nach jeder Kopie außer Haus, alle 5 Minuten über die
+öffentliche Adresse — das prüft nginx, Zertifikat, DNS und App zugleich — und
+täglich die Restlaufzeit des Zertifikats. Fehler meldet er sofort an `/fail`.
+Benachrichtigt wird von Healthchecks.io per E-Mail und Telegram; auf dem
+Server liegt kein Bot-Token. Die Prüfungen nehmen nur POST an, und vom
+Protokoll der App geht nichts hinaus. Verworfen: ein Telegram-Bot auf dem
+Server (kann den eigenen Ausfall nicht melden, ein weiteres Geheimnis), E-Mail
+vom Server (SMTP-Zugang als Geheimnis), ntfy (öffentliche Themen).
+**Folgen:** Stille fällt spätestens nach 15 Minuten auf. Fällt Healthchecks.io
+selbst aus, bleiben Alarme aus — für einen einzelnen Laden hingenommen.
+
 ---
 
 ## Arbeitsweise
